@@ -1,0 +1,1 @@
+"""Modelos del dominio compartidos."""
