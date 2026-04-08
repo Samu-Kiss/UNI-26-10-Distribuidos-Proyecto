@@ -1,10 +1,10 @@
 # DIAGRAMAS
+
 ## DIAGRAMA DE COMPONENTES
 
 ```mermaid
 
 ```
-
 
 ## DIAGRAMA DE CLASES
 

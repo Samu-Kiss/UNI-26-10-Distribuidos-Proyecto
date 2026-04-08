@@ -183,7 +183,7 @@ Rellene la Tabla 1 y realice gráficos de las variables dependientes en función
 
 La primera entrega consta de un informe donde se debe especificar:
 
-- **Modelos del sistema** (Arquitectónico, interacción, fallos y seguridad). Cómo se aplican los conceptos de estos modelos al proyecto. Incluir el modelo de McCuber.
+- **Modelos del sistema** (Arquitectónico, interacción, fallos y seguridad). Cómo se aplican los conceptos de estos modelos al proyecto.
 - **Diseño de TODO el sistema:** Diagrama de despliegue, Diagrama de componentes, Diagrama de clases y Diagrama de secuencia. Este diseño debe incluir el o los componentes para enmascarar las fallas del sistema.
 - En el informe debe explicar:
   - **A.** Cómo los procesos obtendrán la definición inicial de los recursos: número y tipo de sensores, tamaño de la matriz, número de semáforos, etc.
