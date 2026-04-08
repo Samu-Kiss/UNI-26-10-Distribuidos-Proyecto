@@ -1,0 +1,143 @@
+Proyecto: Gestion Inteligente de Trafico Urbano
+
+Proposito
+- Este archivo sirve como bitacora interna de decisiones de diseno.
+- Debe mantenerse alineado con `docs/decisiones_diseno.tex`.
+
+Supuestos base
+- La ciudad se representa como una cuadricula NxM.
+- Internamente se modela como un grafo dirigido.
+- Todas las vias son unidireccionales.
+- El cambio de semaforo ocurre solo entre verde y rojo.
+- Todo el sistema debe ser parametrizable.
+
+Modelo de ciudad
+- Los nodos principales del grafo son intersecciones.
+- Los bordes de la ciudad se modelan con nodos especiales de salida.
+- Las vias se modelan como aristas dirigidas con:
+  - origen
+  - destino
+  - sentido unico
+  - longitud
+  - direccion cardinal
+  - vehiculos en circulacion
+  - vehiculos en espera
+  - velocidad promedio
+  - score
+  - estado de congestion
+
+Sensores
+- Los sensores operan sobre aristas o accesos de entrada.
+- Cada arista instrumentada tiene tres sensores logicos:
+  - camara
+  - espira inductiva
+  - GPS
+- Los sensores funcionan como getters del estado de la arista.
+- La camara mide cola u ocupacion inmediata.
+- La espira mide flujo vehicular en una ventana de tiempo.
+- El GPS mide velocidad promedio como senal complementaria.
+
+Score por via
+- El score se calcula por cada via de entrada antes del semaforo.
+- El score solo describe la carga en el unico sentido permitido de esa via.
+- Cada sensor produce una nota entre 0 y 1.
+- El score final tambien queda entre 0 y 1.
+- Pesos acordados:
+  - w_camara = 0.50
+  - w_espira = 0.35
+  - w_gps = 0.15
+- Formula:
+  - score_via = w_camara * n_camara + w_espira * n_espira + w_gps * n_gps
+
+Analitica
+- PC2 revisa continuamente los conflictos de todas las intersecciones.
+- Para cada interseccion compara las direcciones de entrada en conflicto usando sus scores actuales.
+- La direccion con mayor score recibe prioridad.
+
+Semaforos y tiempos
+- Cada interseccion tiene dos semaforos logicos:
+  - horizontal
+  - vertical
+- El tiempo normal indicado por el enunciado es de 15 segundos.
+- En condiciones equilibradas, cada direccion recibe 15 segundos.
+- El ciclo total normal es de 30 segundos.
+- Se define:
+  - gap = |score_1 - score_2|
+- Reglas:
+  - gap = 0 -> cada direccion recibe 15 segundos
+  - 0 < gap < 1 -> la direccion ganadora recibe mas tiempo dentro del ciclo total de 30 segundos
+  - gap = 1 -> la direccion ganadora recibe los 30 segundos completos
+- gap = 1 solo ocurre si la direccion opuesta tiene score 0.
+- Formula:
+  - T_verde = 15 + 15 * gap
+  - T_opuesto = 30 - T_verde
+
+Tiempo de simulacion
+- Existe un reloj global compartido.
+- El reloj representa un dia de 12:00 a 18:00.
+- Por defecto:
+  - 1 segundo real = 1 minuto simulado
+- Por lo tanto:
+  - 15 segundos reales de cambio normal equivalen a 15 minutos dentro de la ciudad simulada
+- Desde PC3 esta relacion puede acelerarse o ralentizarse.
+
+PC0
+- PC0 es una extension del grupo de computadores.
+- Genera vehiculos y mantiene el estado base del trafico.
+- Guarda el historico completo del dia simulado.
+- Reporta el estado de los vehiculos a:
+  - la base principal de PC3
+  - la replica operativa de PC2
+  - su propia base historica
+- PC0 no se usa para reemplazar a otro computador cuando ocurre una falla.
+
+Vehiculos
+- Un vehiculo solo puede estar en una arista a la vez.
+- Al llegar a una interseccion decide aleatoriamente entre:
+  - seguir derecho
+  - tomar la alternativa permitida
+- Nunca puede moverse contra el sentido de una via.
+- Sale del sistema al llegar a un nodo de salida.
+
+Ambulancia
+- Se crea desde PC3.
+- PC3 envia la solicitud a PC0 por ZeroMQ.
+- PC0 la instancia como vehiculo especial.
+- Debe verse diferente del trafico normal en PC3.
+- El usuario puede forzar manualmente semaforos para abrirle paso.
+
+Persistencia
+- La base principal esta en PC3.
+- La replica operativa esta en PC2.
+- PC2 solo guarda el estado operativo actual, no historico de largo plazo.
+- El historico diario completo se guarda en PC0.
+
+Fallas y recuperacion
+- Si PC3 cae, el sistema pasa a operar con la replica de PC2.
+- Mientras PC3 esta caido, se pierde:
+  - visualizacion
+  - monitoreo interactivo
+  - creacion de nuevas ambulancias
+  - nuevas ordenes manuales desde PC3
+- Si PC3 vuelve a levantarse:
+  - su base se sincroniza con el estado actual de PC2
+  - al terminar la sincronizacion, la operacion vuelve automaticamente a PC3
+- Durante esa resincronizacion se acepta una pequena inconsistencia temporal o un leve retroceso aparente en la simulacion.
+
+Rendimiento
+- Habra dos versiones del broker en PC1:
+  - version base secuencial
+  - version modificada con hilos
+- Metricas principales:
+  - cantidad de eventos almacenados en 2 minutos
+  - tiempo desde una accion del usuario hasta el cambio de semaforo
+
+Arranque
+- Orden de arranque:
+  - 1. PC3
+  - 2. PC2
+  - 3. PC1
+  - 4. PC0
+
+Nota
+- Aunque el PDF menciona "McCuber", se asume que es un error o inconsistencia del enunciado hasta que el docente aclare lo contrario.

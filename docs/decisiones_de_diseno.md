@@ -38,7 +38,7 @@ El sistema se organiza sobre cuatro computadores (**PC0**, **PC1**, **PC2** y **
 - **PC1** aloja los sensores y el broker ZeroMQ.
 - **PC2** ejecuta la analítica, el control semafórico y la réplica de la base de datos.
 - **PC3** ofrece monitoreo, consulta, visualización, base de datos principal y control manual.
-- **PC0** (extensión del grupo) genera los vehículos simulados y guarda el histórico del día; no reemplaza a otro computador en caso de falla.
+- **PC0** (extensión del grupo de computadores) genera los vehículos simulados y guarda el histórico del día; no reemplaza a otro computador en caso de falla.
 
 La estrategia de resiliencia se enfoca en la caída de PC3, usando la réplica de PC2 para que el sistema siga funcionando. También se plantea un experimento de rendimiento para comparar una versión base del broker con otra mejorada con hilos.
 
@@ -206,7 +206,7 @@ $$T_{opuesto} = 30 - T_{verde}$$
 
 Desde PC3 el usuario puede forzar manualmente el estado de un semáforo:
 
-1. Selecciona una intersección y un eje a priorizar.
+1. Selecciona una intersección y define qué dirección o conflicto quiere priorizar.
 2. Indica por cuánto **tiempo de simulación** mantener el forzado.
 3. Mientras dure, la lógica automática basada en score queda suspendida en esa intersección.
 4. Al finalizar, la intersección regresa al control automático.
@@ -217,7 +217,7 @@ Desde PC3 el usuario puede forzar manualmente el estado de un semáforo:
 
 ### 6.1. PC0 como Generador de Vehículos
 
-PC0 es el generador de vehículos simulados y mantiene el estado base del tráfico. Es una extensión del grupo de computadores y **no reemplaza** a PC1, PC2 ni PC3. Desde PC0 se generan vehículos que entran a la ciudad por nodos de borde. Además, PC0 almacena el histórico completo de un día de simulación para el análisis de estadísticas final.
+PC0 es el generador de vehículos simulados y mantiene el estado base del tráfico. Es una extensión del grupo de computadores y **no reemplaza** a PC1, PC2 ni PC3. Desde PC0 se generan vehículos que entran a la ciudad por nodos de borde. Además, PC0 almacena el histórico completo de un día de simulación para el análisis final de estadísticas y comunica el estado de los vehículos a la base principal de PC3, a la réplica operativa de PC2 y a su propia base histórica.
 
 ### 6.2. Modelo de Vehículo
 
@@ -297,7 +297,7 @@ La base de datos principal reside en PC3. Almacena el estado operativo de la ciu
 
 ### 8.2. Réplica en PC2
 
-La réplica se encuentra en PC2 y se actualiza de forma **asíncrona** (PUSH/PULL u otro patrón similar). Su propósito es mantener el estado operativo actual de la ciudad para que el sistema pueda seguir funcionando si PC3 falla. PC2 no es un almacén de resultados históricos de largo plazo; es un **respaldo del estado presente**.
+La réplica se encuentra en PC2 y se actualiza de forma **asíncrona** (PUSH/PULL u otro patrón similar). Su propósito es mantener el estado operativo actual de la ciudad, incluyendo el estado reportado de los vehículos, para que el sistema pueda seguir funcionando si PC3 falla. PC2 no es un almacén de resultados históricos de largo plazo; es un **respaldo del estado presente**.
 
 Si PC3 cae, la operación cambia a la base de datos de PC2. Cuando PC3 vuelve a estar disponible, su base de datos se sincroniza con el estado de PC2 y, una vez finalizada esa sincronización, el sistema vuelve a operar usando PC3 como base principal.
 
@@ -325,8 +325,8 @@ Desde PC3 esta relación puede acelerarse o ralentizarse. Todos los eventos (sen
 2. PC0  → Comunica el estado de los vehículos a PC3 (BD principal),
            PC2 (réplica operativa) y PC0 (base histórica).
 3. PC1  → Ejecuta sensores y publica eventos a través del broker ZeroMQ.
-4. PC2  → Se suscribe a los eventos, calcula analítica, determina fases
-           semafóricas y reenvía información a ambas bases de datos.
+4. PC2  → Se suscribe a los eventos, calcula analítica, revisa conflictos
+           de las intersecciones y determina fases semafóricas.
 5. PC3  → Permite monitorear, consultar y emitir indicaciones de control manual.
 ```
 
@@ -343,7 +343,7 @@ Cuando el usuario crea una ambulancia desde PC3:
 Cuando el usuario fuerza un semáforo desde PC3:
 
 1. PC3 envía la orden al servicio de analítica/control en PC2.
-2. La orden indica qué intersección y qué eje priorizar, y por cuánto tiempo de simulación mantener el forzado.
+2. La orden indica qué intersección y qué dirección o conflicto priorizar, y por cuánto tiempo de simulación mantener el forzado.
 3. PC2 ejecuta el forzado, suspendiendo temporalmente la lógica automática en esa intersección.
 4. Al finalizar el período indicado, la intersección regresa automáticamente al control por score.
 
@@ -405,7 +405,7 @@ Durante la falla de PC3, las siguientes funcionalidades quedan **indisponibles**
 
 > **Nota:** PC0 no participa en el cambio a un respaldo cuando ocurre una falla. El escenario de resiliencia es: PC3 cae → el sistema sigue operando con la réplica de PC2.
 
-Durante el proceso de resincronización de PC3 pueden seguir ocurriendo cambios en el sistema mientras se copia el estado desde PC2. Por esta razón, se acepta que al volver a operar con PC3 pueda aparecer una **pequeña inconsistencia temporal** en la simulación. Esta limitación se considera aceptable dentro del alcance del proyecto.
+Durante el proceso de resincronización de PC3 pueden seguir ocurriendo cambios en el sistema mientras se copia el estado desde PC2. Por esta razón, se acepta que al volver a operar con PC3 pueda aparecer una **pequeña inconsistencia temporal** o una leve sensación de retroceso en el tiempo dentro de la simulación. Esta limitación se considera aceptable dentro del alcance del proyecto.
 
 ---
 
