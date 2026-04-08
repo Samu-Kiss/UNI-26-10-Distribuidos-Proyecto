@@ -466,6 +466,18 @@ PC0 **no** se utiliza como nodo de resiliencia operativa; su rol es exclusivamen
 - **PC3 y PC2**: foco en estado operativo actual y continuidad del servicio.
 - **PC0**: foco en histórico amplio, métricas y análisis posterior.
 
+### 8.3.1. Comportamiento de las Bases entre Ejecuciones
+
+Si el usuario detiene una ejecución y luego vuelve a arrancar el sistema sin borrar las bases SQLite, no todos los computadores se comportan igual:
+
+- La simulación **no se reanuda** desde base de datos. Cada vez que `PC0` arranca, construye un mapa nuevo y un motor de simulación nuevo en memoria, por lo que vehículos, posiciones y ticks comienzan de nuevo desde cero en el proceso activo.
+- La base histórica de `PC0` **sí acumula** datos entre corridas. Si no se limpia, seguirá agregando nuevos eventos de sensores, comandos semafóricos y snapshots históricos de vehículos sobre los registros que ya existían.
+- Las bases de `PC2` y `PC3` conservan el último **estado actual persistido** que hubiera quedado de una ejecución anterior. Sin embargo, ese estado no gobierna la simulación nueva: se reemplaza con los snapshots operativos frescos que empiece a emitir `PC0`.
+- Mientras no llegue el primer snapshot nuevo, una consulta temprana a `PC2` o `PC3` todavía podría mostrar estado viejo persistido de la corrida anterior.
+- Si `PC3` arranca antes de que la nueva simulación produzca snapshots, puede resincronizarse temporalmente con el último snapshot viejo almacenado en `PC2`; esa situación se corrige en cuanto `PC0` vuelve a emitir estado nuevo.
+
+Por esta razón, si se quiere una prueba completamente limpia y sin mezclar corridas anteriores, deben borrarse previamente las SQLite de `PC0`, `PC2` y `PC3`.
+
 ### 8.4. Reloj de Simulación
 
 El sistema comparte un **reloj global de simulación** que representa un día de **12:00 a 18:00**. Por defecto:
