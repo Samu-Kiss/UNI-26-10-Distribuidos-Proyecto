@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1775714249.95293 "/home/legion-5080-monster/Documents/JAVERIANA/2026/Semestre5/SistemasDistribuidosAux/UNI-26-10-ProyectoDistribuidos/docs/DocumentosLatex/decisiones_diseno.tex" "decisiones_diseno.pdf" "decisiones_diseno" 1775714250.34921 0
+["pdflatex"] 1775714594.95246 "/home/legion-5080-monster/Documents/JAVERIANA/2026/Semestre5/SistemasDistribuidosAux/UNI-26-10-ProyectoDistribuidos/docs/DocumentosLatex/decisiones_diseno.tex" "decisiones_diseno.pdf" "decisiones_diseno" 1775714595.3746 0
   "/home/legion-5080-monster/.miktex/texmfs/data/fonts/map/pdftex/pdftex.map" 1773972445.99718 28976 a668fbfa557ad281755924e73ca8348e ""
   "/home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk" 1773112108.40089 31952 9f246ec74f39e2582c2bf6fcd13b7e19 ""
   "/home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk" 1773112110.01234 40136 6f05c2896e1d21f8ef2d7275409c1efa ""
@@ -108,11 +108,11 @@
   "/home/legion-5080-monster/.miktex/texmfs/install/tex/latex/url/url.sty" 1773112093.72745 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
   "/home/legion-5080-monster/.miktex/texmfs/install/tex/latex/zref/zref-abspage.sty" 1773972442.41243 2269 91cd03da61ab1da00145ba8a81560051 ""
   "/home/legion-5080-monster/.miktex/texmfs/install/tex/latex/zref/zref-base.sty" 1773972442.41245 20785 8db5f0a2b2ce96dda9fac87ccab29449 ""
-  "/home/legion-5080-monster/Documents/JAVERIANA/2026/Semestre5/SistemasDistribuidosAux/UNI-26-10-ProyectoDistribuidos/docs/DocumentosLatex/decisiones_diseno.tex" 1775714249.6671 69981 9ef5dba0d94fb59e35d7f01b31722197 ""
-  "decisiones_diseno.aux" 1775714250.269 8073 cb5e468659867ec7ecf0702c12d1b8a7 "pdflatex"
-  "decisiones_diseno.out" 1775714250.27 10678 f86086b16976e665b001541692fce452 "pdflatex"
-  "decisiones_diseno.tex" 1775714249.6671 69981 9ef5dba0d94fb59e35d7f01b31722197 ""
-  "decisiones_diseno.toc" 1775714250.27095 5286 196b473bc1766fa190320baab6efb9d5 "pdflatex"
+  "/home/legion-5080-monster/Documents/JAVERIANA/2026/Semestre5/SistemasDistribuidosAux/UNI-26-10-ProyectoDistribuidos/docs/DocumentosLatex/decisiones_diseno.tex" 1775714307.47227 70001 d961baa2081cd79880d1762276011a7b ""
+  "decisiones_diseno.aux" 1775714595.28337 8073 cb5e468659867ec7ecf0702c12d1b8a7 "pdflatex"
+  "decisiones_diseno.out" 1775714595.28437 10678 f86086b16976e665b001541692fce452 "pdflatex"
+  "decisiones_diseno.tex" 1775714307.47227 70001 d961baa2081cd79880d1762276011a7b ""
+  "decisiones_diseno.toc" 1775714595.28602 5286 196b473bc1766fa190320baab6efb9d5 "pdflatex"
   (generated)
   "decisiones_diseno.aux"
   "decisiones_diseno.log"
