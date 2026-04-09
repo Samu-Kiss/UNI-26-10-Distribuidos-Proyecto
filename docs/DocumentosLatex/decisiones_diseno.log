@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.2) (preloaded format=pdflatex 2026.3.9)  8 APR 2026 02:51
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (MiKTeX 26.2) (preloaded format=pdflatex 2026.3.9)  9 APR 2026 00:57
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -524,74 +524,174 @@ LaTeX Info: Redefining \% on input line 1.
 \tf@toc=\write4
 \openout4 = `decisiones_diseno.toc'.
 
- [2]
-Overfull \hbox (2.60268pt too wide) in paragraph at lines 103--104
-\T1/cmr/m/n/12 semafórico y la réplica de la base de datos; PC3 ofrece monitoreo, consulta, visualización,
- []
-
-
-Overfull \hbox (17.2072pt too wide) in paragraph at lines 103--104
-\T1/cmr/m/n/12 base de datos principal y control manual. Como \T1/cmr/bx/n/12 extensión del grupo de computadores\T1/cmr/m/n/12 ,
- []
-
-[3
+ [2] [3
 
 ]
-Overfull \hbox (21.27185pt too wide) in paragraph at lines 133--134
+Overfull \hbox (21.27185pt too wide) in paragraph at lines 135--136
 []\T1/cmr/m/n/12 Reglas y umbrales que definen los estados de tráfico (normal, congestión, priorización). 
  []
 
 
-Overfull \hbox (10.89532pt too wide) in paragraph at lines 135--136
+Overfull \hbox (10.89532pt too wide) in paragraph at lines 137--138
 []\T1/cmr/m/n/12 Parámetros del reloj de simulación (hora de inicio, hora de fin, factor de aceleración). 
  []
 
 
-Overfull \hbox (0.64336pt too wide) in paragraph at lines 159--160
+Overfull \hbox (6.51714pt too wide) in paragraph at lines 151--152
+[]\T1/cmtt/m/n/12 analitica\T1/cmr/m/n/12 : define el umbral general de congestión y los pesos usados para combinar
+ []
+
+
+Overfull \hbox (8.84148pt too wide) in paragraph at lines 153--154
+\T1/cmr/m/n/12 backend principal, backend de respaldo, control manual y solicitudes de ambulancia. 
+ []
+
+[4]
+Overfull \hbox (37.52643pt too wide) in paragraph at lines 175--176
+[]\T1/cmr/m/n/12 Dentro de esta organización, la carpeta \T1/cmtt/m/n/12 common/utilidades \T1/cmr/m/n/12 cumple un papel especialmente
+ []
+
+
+Overfull \hbox (1.92368pt too wide) in paragraph at lines 190--191
+[]\T1/cmtt/m/n/12 common/mensajes/eventos.py\T1/cmr/m/n/12 : eventos de sensores emitidos por PC1, incluyendo
+ []
+
+
+Overfull \hbox (10.04404pt too wide) in paragraph at lines 192--193
+[]\T1/cmtt/m/n/12 common/mensajes/estado_operativo.py\T1/cmr/m/n/12 : contrato de \T1/cmr/m/it/12 la snapshot operativa \T1/cmr/m/n/12 (véase
+ []
+
+[5]
+Overfull \hbox (2.43881pt too wide) in paragraph at lines 193--194
+[]\T1/cmtt/m/n/12 common/mensajes/ambulancias.py\T1/cmr/m/n/12 : solicitud compartida para crear ambulancias
+ []
+
+
+Overfull \hbox (17.9309pt too wide) in paragraph at lines 197--198
+[]\T1/cmtt/m/n/12 common/utilidades/configuracion.py\T1/cmr/m/n/12 : carga y acceso a configuración compartida. 
+ []
+
+
+Overfull \hbox (17.99895pt too wide) in paragraph at lines 200--201
+[]\T1/cmtt/m/n/12 common/utilidades/persistencia_sqlite.py\T1/cmr/m/n/12 : persistencia compartida en SQLite. 
+ []
+
+
+Overfull \hbox (11.25204pt too wide) in paragraph at lines 217--218
+[]\T1/cmtt/m/n/12 PC2/backend_respaldo\T1/cmr/m/n/12 : backend de continuidad limitado a salud y estado presente. 
+ []
+
+[6]
+Overfull \hbox (0.64336pt too wide) in paragraph at lines 244--245
 []\T1/cmr/bx/n/12 Sensores relacionados\T1/cmr/m/n/12 : las aristas o accesos conectados a la intersección cuentan
  []
 
 
-Overfull \hbox (19.11555pt too wide) in paragraph at lines 161--162
+Overfull \hbox (19.11555pt too wide) in paragraph at lines 246--247
 []\T1/cmr/bx/n/12 Fase activa\T1/cmr/m/n/12 : \T1/cmtt/m/n/12 HORIZONTAL \T1/cmr/m/n/12 o \T1/cmtt/m/n/12 VERTICAL\T1/cmr/m/n/12 ; nunca hay dos fases en verde simultáneamente. 
  []
 
-[4]
-Overfull \hbox (4.56487pt too wide) in paragraph at lines 202--203
+[7]
+Overfull \hbox (4.56487pt too wide) in paragraph at lines 287--288
 \T1/cmr/m/n/12 dispositivos ubicados físicamente en el punto de la intersección, sino como \T1/cmr/bx/n/12 observadores
  []
 
-
-Overfull \hbox (11.45929pt too wide) in paragraph at lines 217--218
-\T1/cmr/m/n/12 aporta una señal complementaria de \T1/cmr/bx/n/12 fluidez o lentitud \T1/cmr/m/n/12 (\T1/cmtt/m/n/12 EVENTO_DENSIDAD_DE_TRAFICO\T1/cmr/m/n/12 ,
+[8]
+Overfull \hbox (51.66057pt too wide) in paragraph at lines 318--319
+\T1/cmr/m/n/12 arista y aporta una señal complementaria de \T1/cmr/bx/n/12 fluidez o lentitud \T1/cmr/m/n/12 (\T1/cmtt/m/n/12 EVENTO_DENSIDAD_DE_TRAFICO\T1/cmr/m/n/12 ,
  []
 
-[5] [6] [7]
-Overfull \hbox (9.86078pt too wide) in paragraph at lines 333--334
+[9] [10] [11]
+Overfull \hbox (0.47977pt too wide) in paragraph at lines 442--443
+[]\T1/cmr/m/n/12 Además de esta temporización, la implementación actual aplica dos reglas operativas
+ []
+
+
+Overfull \hbox (41.58899pt too wide) in paragraph at lines 446--447
+[]\T1/cmr/bx/n/12 Una decisión por intersección y por tick\T1/cmr/m/n/12 : aunque los eventos lleguen secuencialmente,
+ []
+
+
+Overfull \hbox (9.86078pt too wide) in paragraph at lines 471--472
 []\T1/cmr/m/n/12 Como \T1/cmr/bx/n/12 extensión del grupo de computadores\T1/cmr/m/n/12 , se incorpora PC0 para la simulación
  []
 
-[8] [9]
-Overfull \hbox (7.8904pt too wide) in paragraph at lines 413--414
+[12] [13]
+Overfull \hbox (4.92186pt too wide) in paragraph at lines 509--510
+[]\T1/cmr/m/n/12 Como complemento, el resumen de cada tick incluye la hora simulada correspondiente
+ []
+
+[14] [15]
+Overfull \hbox (7.8904pt too wide) in paragraph at lines 576--577
 []\T1/cmr/m/n/12 Enviar indicaciones directas al servicio de analítica para forzar cambios semafóricos. 
  []
 
-[10] [11] [12]
-Overfull \hbox (21.72833pt too wide) in paragraph at lines 535--536
-[]\T1/cmr/m/n/12 La falla principal considerada es la caída de PC3. Si PC3 falla, se pierden temporalmente: 
+
+Overfull \hbox (13.24214pt too wide) in paragraph at lines 577--578
+[]\T1/cmr/m/n/12 Exponer el backend primario que el cliente consulta normalmente antes de considerar
  []
 
 
-Overfull \hbox (15.00226pt too wide) in paragraph at lines 547--548
+Overfull \hbox (4.26505pt too wide) in paragraph at lines 604--605
+\T1/cmr/m/n/12 quedan registrados los eventos de sensores, los comandos semafóricos y el estado histórico
+ []
+
+[16]
+Overfull \hbox (18.28397pt too wide) in paragraph at lines 613--614
+[]\T1/cmr/m/n/12 La base histórica de PC0 \T1/cmr/bx/n/12 sí acumula \T1/cmr/m/n/12 datos entre corridas si no se limpia previamente. 
+ []
+
+[17]
+Overfull \hbox (16.01868pt too wide) in paragraph at lines 668--669
+[]\T1/cmr/m/n/12 La cadencia de envío de la snapshot se controla por configuración. En la implementación
+ []
+
+
+Overfull \hbox (13.56955pt too wide) in paragraph at lines 672--673
+[]\T1/cmr/m/n/12 Esto permite balancear dos necesidades opuestas, es decir, por un lado, una observación
+ []
+
+
+Overfull \hbox (15.036pt too wide) in paragraph at lines 672--673
+\T1/cmr/m/n/12 más fina del sistema; por otro, menor volumen de mensajes y menor presión de persistencia. 
+ []
+
+[18]
+Overfull \hbox (5.33975pt too wide) in paragraph at lines 701--702
+[]\T1/cmr/m/n/12 En la implementación actual, este forzado se realiza por ZeroMQ: el backend principal
+ []
+
+[19]
+Overfull \hbox (18.83188pt too wide) in paragraph at lines 736--737
+[]\T1/cmr/bx/n/12 PC0\T1/cmr/m/n/12 : inicia la simulación autoritativa, la generación de vehículos y el almacenamiento
+ []
+
+[20]
+Overfull \hbox (15.00226pt too wide) in paragraph at lines 780--781
 []\T1/cmr/m/n/12 Ante la caída de PC3, el sistema sigue operando con la réplica en PC2. Los componentes
  []
 
-[13]
-Overfull \hbox (1.25198pt too wide) in paragraph at lines 579--580
+
+Overfull \hbox (2.6362pt too wide) in paragraph at lines 796--797
+[]\T1/cmr/m/n/12 El cliente de failover intenta primero hablar con PC3; si no recibe respuesta, reintenta
+ []
+
+
+Overfull \hbox (4.26913pt too wide) in paragraph at lines 798--799
+[]\T1/cmr/m/n/12 Sin embargo, compartir el mismo protocolo no significa compartir la misma autoridad
+ []
+
+
+Overfull \hbox (57.01082pt too wide) in paragraph at lines 798--799
+\T1/cmr/m/n/12 operativa. El respaldo no ejecuta operaciones activas. Si recibe solicitudes como \T1/cmtt/m/n/12 crear_ambulancia
+ []
+
+[21]
+Overfull \hbox (1.25198pt too wide) in paragraph at lines 828--829
 []\T1/cmr/m/n/12 Segunda versión del broker que introduce \T1/cmr/bx/n/12 hilos \T1/cmr/m/n/12 para separar la recepción, el encolado
  []
 
-[14] (decisiones_diseno.aux
+[22] (decisiones_diseno.aux
 LaTeX Info: Redefining \. on input line 12.
 LaTeX Info: Redefining \% on input line 12.
 )
@@ -600,20 +700,20 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `decisiones_diseno.out' has not changed.
-(rerunfilecheck)             Checksum: 5593F56ADD40BC3D0086D4363F256D99;8329.
+(rerunfilecheck)             Checksum: F86086B16976E665B001541692FCE452;10678.
  ) 
 Here is how much of TeX's memory you used:
- 13156 strings out of 469804
- 212883 string characters out of 5469165
- 657374 words of memory out of 5000000
- 41532 multiletter control sequences out of 15000+600000
+ 13187 strings out of 469804
+ 213273 string characters out of 5469165
+ 657375 words of memory out of 5000000
+ 41543 multiletter control sequences out of 15000+600000
  640601 words of font info for 65 fonts, out of 8000000 for 9000
  0 hyphenation exceptions out of 8191
- 76i,13n,79p,847b,790s stack positions out of 10000i,1000n,20000p,200000b,200000s
- </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ectt1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecti1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecrm1095.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx2488.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecrm1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1728.pk></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmmi12.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmmi8.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmr12.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmr8.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
-Output written on decisiones_diseno.pdf (15 pages, 251952 bytes).
+ 76i,13n,79p,816b,806s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1440.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ectt1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecti1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecrm1095.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx2488.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecrm1200.pk> </home/legion-5080-monster/.miktex/texmfs/data/fonts/pk/ljfour/jknappen/ec/dpi600/ecbx1728.pk></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmex10.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmmi12.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmmi8.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmr12.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmr8.pfb></home/legion-5080-monster/.miktex/texmfs/install/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
+Output written on decisiones_diseno.pdf (23 pages, 311026 bytes).
 PDF statistics:
- 748 PDF objects out of 1000 (max. 8388607)
- 88 named destinations out of 1000 (max. 500000)
- 401 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 882 PDF objects out of 1000 (max. 8388607)
+ 108 named destinations out of 1000 (max. 500000)
+ 473 words of extra memory for PDF output out of 10000 (max. 10000000)
 
