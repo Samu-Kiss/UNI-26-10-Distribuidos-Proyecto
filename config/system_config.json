@@ -68,7 +68,7 @@
       "ambulancias": "Parametros especificos de ambulancias.",
       "semilla": "Semilla pseudoaleatoria del motor de simulacion vehicular."
     },
-    "tick_segundos_reales": 5,
+    "tick_segundos_reales": 1,
     "minutos_simulados_por_tick": 1,
     "hora_inicio_simulada": "12:00",
     "hora_fin_simulada": "18:00",

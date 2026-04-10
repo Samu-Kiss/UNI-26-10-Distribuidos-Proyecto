@@ -1,60 +1,94 @@
 \babel@toc {spanish}{}\relax 
-\contentsline {section}{\numberline {1}Resumen del Diseño Acordado}{3}{section.1}%
-\contentsline {section}{\numberline {2}Decisiones Base del Proyecto}{3}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Supuestos Generales}{3}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Parámetros Configurables}{3}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}Documentación del Archivo de Configuración}{4}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Organización del Código Compartido}{5}{subsection.2.4}%
-\contentsline {subsection}{\numberline {2.5}Organización del Repositorio por Computador}{6}{subsection.2.5}%
-\contentsline {section}{\numberline {3}Modelo de la Ciudad}{7}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Cuadrícula y Grafo Dirigido}{7}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Intersecciones}{7}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Vías}{7}{subsection.3.3}%
-\contentsline {subsection}{\numberline {3.4}Nodos de Borde}{8}{subsection.3.4}%
-\contentsline {section}{\numberline {4}Sensores y Estado del Tráfico}{8}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Sensores por Arista}{8}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Cámara}{8}{subsection.4.2}%
-\contentsline {subsection}{\numberline {4.3}Espira Inductiva}{8}{subsection.4.3}%
-\contentsline {subsection}{\numberline {4.4}GPS}{9}{subsection.4.4}%
-\contentsline {subsection}{\numberline {4.5}Relación entre Sensores y Aristas}{9}{subsection.4.5}%
-\contentsline {subsection}{\numberline {4.6}Clasificación Cualitativa de Notas}{10}{subsection.4.6}%
-\contentsline {section}{\numberline {5}Lógica de Analítica y Semáforos}{10}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Score por Vía}{10}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Pesos y Normalización}{10}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Comparación entre Direcciones en Conflicto}{11}{subsection.5.3}%
-\contentsline {subsection}{\numberline {5.4}Temporización Semafórica}{11}{subsection.5.4}%
-\contentsline {subsection}{\numberline {5.5}Control Manual}{12}{subsection.5.5}%
-\contentsline {section}{\numberline {6}Vehículos y Simulación}{13}{section.6}%
-\contentsline {subsection}{\numberline {6.1}PC0 como Dueño del Mapa, los Vehículos y el Reloj Lógico}{13}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}Modelo de Vehículo}{13}{subsection.6.2}%
-\contentsline {subsection}{\numberline {6.3}Movimiento dentro de la Cuadrícula}{13}{subsection.6.3}%
-\contentsline {subsection}{\numberline {6.4}Registro Operativo de Vehículos}{14}{subsection.6.4}%
-\contentsline {subsection}{\numberline {6.5}Ambulancia}{14}{subsection.6.5}%
-\contentsline {section}{\numberline {7}Distribución por Computadores}{14}{section.7}%
-\contentsline {subsection}{\numberline {7.1}PC0}{14}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}PC1}{15}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}PC2}{15}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}PC3}{16}{subsection.7.4}%
-\contentsline {section}{\numberline {8}Persistencia y Tiempo de Simulación}{16}{section.8}%
-\contentsline {subsection}{\numberline {8.1}Base de Datos en PC3}{16}{subsection.8.1}%
-\contentsline {subsection}{\numberline {8.2}Réplica en PC2}{16}{subsection.8.2}%
-\contentsline {subsection}{\numberline {8.3}Histórico Diario en PC0}{16}{subsection.8.3}%
-\contentsline {subsection}{\numberline {8.4}Comportamiento de las Bases entre Ejecuciones}{17}{subsection.8.4}%
-\contentsline {subsection}{\numberline {8.5}Reloj de Simulación}{17}{subsection.8.5}%
-\contentsline {section}{\numberline {9}Interacción entre Componentes}{18}{section.9}%
-\contentsline {subsection}{\numberline {9.1}Flujo General del Sistema}{18}{subsection.9.1}%
-\contentsline {subsection}{\numberline {9.2}Snapshot Operativa}{18}{subsection.9.2}%
-\contentsline {subsection}{\numberline {9.3}Creación de Ambulancias}{19}{subsection.9.3}%
-\contentsline {subsection}{\numberline {9.4}Priorización Manual de Semáforos}{19}{subsection.9.4}%
-\contentsline {section}{\numberline {10}Inicialización del Sistema}{19}{section.10}%
-\contentsline {subsection}{\numberline {10.1}Configuración Inicial}{19}{subsection.10.1}%
-\contentsline {subsection}{\numberline {10.2}Orden de Arranque}{20}{subsection.10.2}%
-\contentsline {subsection}{\numberline {10.3}Prioridad de Implementación}{20}{subsection.10.3}%
-\contentsline {section}{\numberline {11}Fallos y Continuidad Operativa}{21}{section.11}%
-\contentsline {subsection}{\numberline {11.1}Caída de PC3}{21}{subsection.11.1}%
-\contentsline {subsection}{\numberline {11.2}Continuidad con PC2}{21}{subsection.11.2}%
-\contentsline {subsection}{\numberline {11.3}Backend Principal y Backend de Respaldo}{21}{subsection.11.3}%
-\contentsline {subsection}{\numberline {11.4}Limitaciones Durante la Falla}{22}{subsection.11.4}%
-\contentsline {section}{\numberline {12}Comparación de Rendimiento del Broker}{22}{section.12}%
-\contentsline {subsection}{\numberline {12.1}Versión Base}{22}{subsection.12.1}%
-\contentsline {subsection}{\numberline {12.2}Versión Modificada con Hilos}{22}{subsection.12.2}%
+\contentsline {section}{\numberline {1}Resumen del Diseño Acordado}{4}{section.1}%
+\contentsline {section}{\numberline {2}Decisiones Base del Proyecto}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Supuestos Generales}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Parámetros Configurables}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Documentación del Archivo de Configuración}{5}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Organización del Código Compartido}{6}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Organización del Repositorio por Computador}{7}{subsection.2.5}%
+\contentsline {section}{\numberline {3}Modelo de la Ciudad}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Cuadrícula y Grafo Dirigido}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Intersecciones}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Vías}{8}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Nodos de Borde}{9}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Sensores y Estado del Tráfico}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Sensores por Arista}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Cámara}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Espira Inductiva}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}GPS}{10}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Relación entre Sensores y Aristas}{11}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Clasificación Cualitativa de Notas}{11}{subsection.4.6}%
+\contentsline {section}{\numberline {5}Lógica de Analítica y Semáforos}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Score por Vía}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Pesos y Normalización}{11}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Comparación entre Direcciones en Conflicto}{12}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Temporización Semafórica}{13}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Control Manual}{14}{subsection.5.5}%
+\contentsline {section}{\numberline {6}Vehículos y Simulación}{14}{section.6}%
+\contentsline {subsection}{\numberline {6.1}PC0 como Dueño del Mapa, los Vehículos y el Reloj Lógico}{14}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Modelo de Vehículo}{14}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Movimiento dentro de la Cuadrícula}{15}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Registro Operativo de Vehículos}{15}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Ambulancia}{15}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Distribución por Computadores}{16}{section.7}%
+\contentsline {subsection}{\numberline {7.1}PC0}{16}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}PC1}{16}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}PC2}{17}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}PC3}{17}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Persistencia y Tiempo de Simulación}{17}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Base de Datos en PC3}{17}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Réplica en PC2}{18}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Histórico Diario en PC0}{18}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Comportamiento de las Bases entre Ejecuciones}{18}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Reloj de Simulación}{19}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Interacción entre Componentes}{19}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Flujo General del Sistema}{19}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Snapshot Operativa}{19}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Creación de Ambulancias}{20}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Priorización Manual de Semáforos}{21}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Inicialización del Sistema}{21}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Configuración Inicial}{21}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Orden de Arranque}{22}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Prioridad de Implementación}{22}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Fallos y Continuidad Operativa}{22}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Caída de PC3}{22}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Continuidad con PC2}{23}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Backend Principal y Backend de Respaldo}{23}{subsection.11.3}%
+\contentsline {subsection}{\numberline {11.4}Limitaciones Durante la Falla}{23}{subsection.11.4}%
+\contentsline {section}{\numberline {12}Comparación de Rendimiento del Broker}{24}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Versión Base}{24}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Versión Modificada con Hilos}{24}{subsection.12.2}%
+\contentsline {section}{\numberline {13}Diagramas de Diseño}{24}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Diagrama de Clases}{24}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Diagrama de Componentes}{25}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Diagrama de Despliegue}{26}{subsection.13.3}%
+\contentsline {subsection}{\numberline {13.4}Diagrama de Secuencia}{27}{subsection.13.4}%
+\contentsline {section}{\numberline {14}Protocolo de Pruebas}{28}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Objetivo}{28}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Alcance}{28}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Supuestos}{29}{subsection.14.3}%
+\contentsline {subsection}{\numberline {14.4}Marco de Pruebas por Modelos del Sistema}{29}{subsection.14.4}%
+\contentsline {subsubsection}{\numberline {14.4.1}Modelo Arquitectónico}{29}{subsubsection.14.4.1}%
+\contentsline {subsubsection}{\numberline {14.4.2}Modelo de Interacción}{29}{subsubsection.14.4.2}%
+\contentsline {subsubsection}{\numberline {14.4.3}Modelo de Fallos}{30}{subsubsection.14.4.3}%
+\contentsline {subsubsection}{\numberline {14.4.4}Modelo de Seguridad}{30}{subsubsection.14.4.4}%
+\contentsline {subsection}{\numberline {14.5}Matriz de Casos de Prueba}{30}{subsection.14.5}%
+\contentsline {subsubsection}{\numberline {14.5.1}Pruebas Funcionales}{30}{subsubsection.14.5.1}%
+\contentsline {subsubsection}{\numberline {14.5.2}Pruebas de Integración}{32}{subsubsection.14.5.2}%
+\contentsline {subsubsection}{\numberline {14.5.3}Pruebas de Fallos}{33}{subsubsection.14.5.3}%
+\contentsline {subsubsection}{\numberline {14.5.4}Pruebas de Seguridad e Integridad}{33}{subsubsection.14.5.4}%
+\contentsline {subsubsection}{\numberline {14.5.5}Pruebas de Desempeño}{34}{subsubsection.14.5.5}%
+\contentsline {subsection}{\numberline {14.6}Procedimiento de Ejecución y Repetición Experimental}{36}{subsection.14.6}%
+\contentsline {subsubsection}{\numberline {14.6.1}Preparación del entorno}{36}{subsubsection.14.6.1}%
+\contentsline {subsubsection}{\numberline {14.6.2}Ejecución de una corrida}{36}{subsubsection.14.6.2}%
+\contentsline {subsubsection}{\numberline {14.6.3}Repetición experimental}{36}{subsubsection.14.6.3}%
+\contentsline {subsubsection}{\numberline {14.6.4}Configuración de escenarios}{37}{subsubsection.14.6.4}%
+\contentsline {subsection}{\numberline {14.7}Tratamiento de Fallas: Caída de PC3 y Continuidad con Réplica PC2}{37}{subsection.14.7}%
+\contentsline {subsubsection}{\numberline {14.7.1}Protocolo de prueba de caída}{37}{subsubsection.14.7.1}%
+\contentsline {subsubsection}{\numberline {14.7.2}Criterios de éxito}{37}{subsubsection.14.7.2}%
+\contentsline {subsection}{\numberline {14.8}Riesgos a la Validez de Resultados}{38}{subsection.14.8}%
+\contentsline {subsubsection}{\numberline {14.8.1}Amenazas a la validez interna}{38}{subsubsection.14.8.1}%
+\contentsline {subsubsection}{\numberline {14.8.2}Amenazas a la validez externa}{38}{subsubsection.14.8.2}%
+\contentsline {subsubsection}{\numberline {14.8.3}Amenazas a la validez de constructo}{38}{subsubsection.14.8.3}%
+\contentsline {subsection}{\numberline {14.9}Resultados Esperados y Formato de Reporte}{38}{subsection.14.9}%
+\contentsline {subsection}{\numberline {14.10}Medidas de rendimiento}{39}{subsection.14.10}%
