@@ -37,7 +37,7 @@ Código compartido:
 2. Instalar dependencias:
 
 ```bash
-cd /home/runner/work/UNI-26-10-ProyectoDistribuidos/UNI-26-10-ProyectoDistribuidos
+cd UNI-26-10-ProyectoDistribuidos
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 
 Toda la configuración está en:
 
-- `/home/runner/work/UNI-26-10-ProyectoDistribuidos/UNI-26-10-ProyectoDistribuidos/config/system_config.json`
+- `config/system_config.json`
 
 Ahí puedes ajustar:
 
