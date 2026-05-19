@@ -16,6 +16,10 @@ ENV/
 .env
 .env.*
 
+# Local Codex/agent metadata
+.codex/
+.agents/
+
 # Local IDE/editor metadata
 .idea/
 .vscode/
