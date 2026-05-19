@@ -5,7 +5,7 @@ from pathlib import Path
 import zmq
 
 from common.utilidades.configuracion import cargar_configuracion
-from common.utilidades.logs import log
+from common.utilidades.logs import hora_simulada_desde_config, log
 from common.utilidades.persistencia_sqlite import RepositorioSQLite
 
 
@@ -37,6 +37,7 @@ def sincronizar_desde_replica(
     log(
         "PC3-MainDB",
         f"Base principal resincronizada desde replica con tick {snapshot['tick_actual']}.",
+        hora_simulada=hora_simulada_desde_config(config, int(snapshot["tick_actual"])),
     )
 
 
@@ -58,7 +59,11 @@ def main() -> None:
         datos = mensaje["datos"]
         if tipo == "snapshot_operativo":
             repositorio.guardar_snapshot_operativo(datos)
-            log("PC3-MainDB", f"Persistido mensaje de tipo {tipo}.")
+            log(
+                "PC3-MainDB",
+                f"Persistido mensaje de tipo {tipo}.",
+                hora_simulada=hora_simulada_desde_config(config, int(datos["tick_actual"])),
+            )
 
 
 if __name__ == "__main__":

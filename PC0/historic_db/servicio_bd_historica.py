@@ -5,7 +5,7 @@ from pathlib import Path
 import zmq
 
 from common.utilidades.configuracion import cargar_configuracion
-from common.utilidades.logs import log
+from common.utilidades.logs import hora_simulada_desde_config, log
 from common.utilidades.persistencia_sqlite import RepositorioSQLite
 
 
@@ -30,7 +30,12 @@ def main() -> None:
             repositorio.guardar_comando_semaforo(datos)
         elif tipo == "snapshot_operativo":
             repositorio.guardar_snapshot_vehiculos_historico(datos)
-        log("PC0-BD", f"Persistido mensaje historico de tipo {tipo}.")
+        tick_origen = int(datos.get("tick_origen", datos.get("tick_actual", 0)))
+        log(
+            "PC0-BD",
+            f"Persistido mensaje historico de tipo {tipo}.",
+            hora_simulada=hora_simulada_desde_config(config, tick_origen),
+        )
 
 
 if __name__ == "__main__":

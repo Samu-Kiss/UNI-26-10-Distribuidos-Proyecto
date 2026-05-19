@@ -13,6 +13,7 @@ class ComandoSemaforo:
     razon: str
     tick_origen: int
     timestamp: str
+    modo: str = "AUTOMATICO"
 
     def a_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -26,6 +27,7 @@ class ComandoSemaforo:
         tiempo_opuesto: float,
         razon: str,
         tick_origen: int,
+        modo: str = "AUTOMATICO",
     ) -> "ComandoSemaforo":
         return cls(
             interseccion=interseccion,
@@ -35,6 +37,7 @@ class ComandoSemaforo:
             razon=razon,
             tick_origen=tick_origen,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            modo=modo,
         )
 
     @classmethod
@@ -47,4 +50,5 @@ class ComandoSemaforo:
             razon=str(datos["razon"]),
             tick_origen=int(datos.get("tick_origen", 0)),
             timestamp=str(datos["timestamp"]),
+            modo=str(datos.get("modo", "AUTOMATICO")),
         )

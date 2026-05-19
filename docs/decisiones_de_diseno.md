@@ -74,15 +74,16 @@ Los siguientes parámetros deben poder ajustarse con archivos de configuración,
 
 El archivo principal de configuración es `config/system_config.json`. Como el proyecto lo carga con `json.load`, no es posible usar comentarios nativos tipo `//` o `/* ... */` sin romper el parseo. Por esa razón, se adopta una convención explícita: agregar claves `_comentario` o `_comentarios` dentro del mismo JSON para explicar el propósito de cada bloque y de cada parámetro sin afectar la ejecución.
 
-En la implementación actual, ese archivo agrupa sus parámetros en cinco bloques:
+En la implementación actual, ese archivo agrupa sus parámetros en seis bloques:
 
 - `ciudad`: define la geometría de la cuadrícula, el rango de longitud de las vías y la semilla usada para construir el mapa reproducible.
 - `sensores`: define qué tipos de sensores están activos y con qué frecuencia publica `PC1` sus eventos derivados del snapshot.
-- `analitica`: define el umbral general de congestión y los pesos usados para combinar cámara, espira y GPS en el score por vía.
-- `simulacion`: define la duración del tick real, el tiempo simulado por tick, la frecuencia de envío de snapshots, la tasa de generación de vehículos, el máximo de vehículos por tick, el rango de velocidades iniciales y la velocidad por defecto de ambulancias.
+- `analitica`: define los pesos usados para combinar cámara, espira y GPS en el score por vía.
+- `simulacion`: define la duración del tick real, el tiempo simulado por tick, la frecuencia de envío de snapshots, la tasa de generación de vehículos, el mínimo y máximo de vehículos por vía de entrada activa en cada tick, el rango de velocidades iniciales y la velocidad por defecto de ambulancias.
+- `frontend`: define el host y el puerto inicial de la interfaz web local de `PC3`.
 - `zmq`: define todos los endpoints de comunicación entre `PC0`, `PC1`, `PC2` y `PC3`, incluyendo ingestas de bases de datos, broker, snapshots, backend principal, backend de respaldo, control manual y solicitudes de ambulancia.
 
-Dentro del bloque `simulacion` también quedan parametrizadas de forma explícita `hora_inicio_simulada` y `hora_fin_simulada`, para que el reloj lógico del sistema no dependa solo de lo escrito en el informe sino de valores reales del archivo de configuración.
+Dentro del bloque `simulacion` también quedan parametrizadas de forma explícita `hora_inicio_simulada`, `hora_fin_simulada` y `modo_bucle_infinito`, para que el reloj lógico del sistema no dependa solo de lo escrito en el informe sino de valores reales del archivo de configuración. Cuando `modo_bucle_infinito=true`, la simulación ignora ese rango, arranca a las `00:00` y, al pasar de `23:59`, vuelve a `00:00` sin detenerse.
 
 Esta convención tiene dos ventajas para el informe final: el archivo sigue siendo ejecutable tal como está, y al mismo tiempo queda autoexplicado para cualquier integrante que necesite modificar parámetros sin rastrear el código fuente.
 
@@ -122,6 +123,18 @@ En la implementación actual, el contenido principal de `common` se entiende as�
 - `common/utilidades/persistencia_sqlite.py`: persistencia compartida en SQLite.
 - `common/utilidades/mensajeria_zmq.py`: helpers ZeroMQ de mejor esfuerzo.
 
+### 2.3.1. Formato de Logs Operativos
+
+Se adopta un formato uniforme de logs para todos los procesos del sistema:
+
+```text
+[real=HH:MM:SS] [sim=HH:MM] [NOMBRE_PROCESO] mensaje
+```
+
+La hora real corresponde al reloj del computador donde corre el proceso. La hora simulada se calcula desde `simulacion.hora_inicio_simulada`, `simulacion.minutos_simulados_por_tick` y el `tick` asociado al evento, snapshot o comando. Cuando un proceso todavía no tiene contexto de simulación, el campo se imprime como `sim=--`.
+
+Esta decisión permite leer en una misma línea el momento real de ejecución y el instante lógico del mundo simulado, lo cual facilita depuración, sustentación y medición de latencias.
+
 ### 2.4. Organización del Repositorio por Computador
 
 Además de `common`, el repositorio se organiza por el rol de cada computador:
@@ -136,6 +149,7 @@ Además de `common`, el repositorio se organiza por el rol de cada computador:
 - `PC2/backend_respaldo`: backend de respaldo limitado a continuidad y consulta de estado actual cuando `PC3` no está disponible.
 - `PC3/main_db`: base principal y servicio de persistencia/resincronización.
 - `PC3/backend`: backend principal de consultas de estado, creación de ambulancias y control manual.
+- `PC3/frontend`: servidor HTTP local de la visualización de PC3 y archivos estáticos separados (`index.html`, `styles.css`, `app.js`).
 
 Como criterio de mantenimiento del repositorio, se evita conservar directorios vacíos o de andamio que todavía no cumplen una función real en la implementación. Si en una fase posterior vuelve a ser necesario separar responsabilidades como generadores, variantes de broker, reloj explícito o frontend, esas carpetas pueden recrearse en ese momento para dejar un esqueleto del proyecto claro, limpio y alineado con el estado real del código.
 
@@ -287,6 +301,8 @@ $$\text{score}_{vía} = w_c \cdot n_c + w_e \cdot n_e + w_g \cdot n_g$$
 
 Como los pesos suman 1 y cada nota está en [0, 1], el resultado final también queda en el rango **[0, 1]**. Estos valores pueden ajustarse si el grupo decide recalibrar el sistema.
 
+Para mantener coherencia entre analítica, persistencia y visualización, PC0 calcula y publica en cada snapshot operativo el mismo score ponderado que usa PC2: cámara por vehículos en espera, espira por vehículos en circulación y GPS por velocidad promedio. El estado textual de la vía se deriva de ese score: `BAJA` para valores menores a 0.40, `NORMAL` entre 0.40 y 0.70, y `ALTA` por encima de 0.70.
+
 ### 5.3. Comparación entre Direcciones en Conflicto
 
 Cada intersección se controla comparando las vías de entrada que están en conflicto antes del semáforo. El score se calcula por cada vía de entrada. Por ejemplo, una intersección puede tener:
@@ -302,7 +318,9 @@ Como el control semafórico final se realiza por ejes lógicos (`HORIZONTAL` y `
 
 ### 5.4. Temporización Semafórica
 
-La duración del verde se ajusta según la diferencia entre los scores de las direcciones en conflicto. Se toma como base un **ciclo total de 30 segundos** (15 segundos por dirección en condiciones normales). En la simulación, 1 segundo real = 1 minuto simulado, por lo que 15 segundos reales equivalen a 15 minutos dentro de la ciudad simulada.
+La duración del verde se ajusta según la diferencia entre los scores de las direcciones en conflicto. La implementación usa un **contador cíclico fijo de 30 ticks** por intersección. Ese contador avanza de 1 a 30, vuelve a 1 y **no se reinicia** cuando llega una orden nueva desde PC2.
+
+La orden automática ya no significa "cambie inmediatamente y empiece a contar otra vez". En cambio, significa: "con el contador actual, reserve esta cantidad de ticks del ciclo para el eje prioritario y el resto para el eje opuesto". Por eso, si una nueva lectura cambia los scores, la partición del ciclo puede moverse en tiempo real sin borrar el avance del contador.
 
 Se define:
 
@@ -310,26 +328,36 @@ $$\text{gap} = |\text{score}_1 - \text{score}_2| \in [0, 1]$$
 
 | Valor de gap | Resultado |
 |---|---|
-| `gap = 0` | No hay diferencia de prioridad; cada dirección recibe 15 s (ciclo de 30 s). |
-| `0 < gap < 1` | La dirección con mayor score recibe una porción mayor del ciclo de 30 s. |
-| `gap = 1` | Una dirección tiene score 0; la ganadora recibe los 30 s completos. |
+| `gap = 0` | No hay diferencia de prioridad; cada eje recibe 15 ticks del ciclo. |
+| `0 < gap < 1` | El eje con mayor score recibe una porción mayor del ciclo de 30 ticks. |
+| `gap = 1` | Un eje tiene prioridad máxima frente al otro; el eje ganador recibe los 30 ticks completos. |
 
-De forma general, el tiempo de verde de la dirección prioritaria es:
+De forma general, la ventana del eje prioritario es:
 
 $$T_{verde} = 15 + 15 \cdot \text{gap}$$
 
-El tiempo restante del ciclo queda asignado a la dirección opuesta:
+La ventana restante queda asignada al eje opuesto:
 
 $$T_{opuesto} = 30 - T_{verde}$$
+
+Adicionalmente, la implementación aplica una excepción operativa: si y solo si un eje tiene `score = 0.0` y el otro tiene `score > 0.0`, el eje con carga recibe los 30 ticks completos y el eje vacío recibe 0 ticks. Esta regla evita dejar esperando vehículos cuando el conflicto opuesto no tiene ningún carro.
+
+Operativamente, el eje opuesto ocupa el primer tramo del contador y el eje prioritario ocupa el tramo final. Por ejemplo, si `VERTICAL` gana con `T_verde = 23` y `T_opuesto = 7`, entonces:
+
+- contador `1..7`: verde para `HORIZONTAL`;
+- contador `8..30`: verde para `VERTICAL`.
+
+Si después llega otra orden, PC0 conserva el contador actual y recalcula qué eje corresponde a ese punto del ciclo. La discretización se hace a ticks enteros; por ejemplo, un valor teórico de `22.5` ticks se materializa como `23` ticks para el eje prioritario y `7` para el opuesto.
 
 ### 5.5. Control Manual
 
 Desde PC3 el usuario puede forzar manualmente el estado de un semáforo:
 
-1. Selecciona una intersección y define qué dirección o conflicto quiere priorizar.
-2. Indica por cuánto **tiempo de simulación** mantener el forzado.
-3. Mientras dure, la lógica automática basada en score queda suspendida en esa intersección.
-4. Al finalizar, la intersección regresa al control automático.
+1. Selecciona una intersección y define qué eje quiere forzar.
+2. Mientras ese control esté activo, la lógica automática basada en score queda suspendida en esa intersección.
+3. El forzado se mantiene **hasta nueva orden**; no expira por tiempo.
+4. Solo una intersección puede permanecer en modo manual a la vez.
+5. Para cambiar de intersección controlada, primero debe devolverse la anterior a modo automático.
 
 ---
 
@@ -354,15 +382,15 @@ Cada vehículo es una entidad simulada con identificador único. Un vehículo so
 
 Los vehículos entran al sistema por un nodo de borde y recorren aristas dirigidas entre intersecciones. Al llegar a una intersección, el vehículo decide **aleatoriamente** entre seguir derecho o tomar la alternativa permitida. No puede moverse en contra del sentido de una vía. Sale del sistema cuando llega a un nodo de salida configurado como egreso.
 
-La presencia y el movimiento de los vehículos cambian el estado de las vías: cada vehículo aporta al conteo en circulación dentro de su arista. Si el semáforo está en rojo y el vehículo llega al final de la arista, aporta al conteo de vehículos en espera.
+La presencia y el movimiento de los vehículos cambian el estado de las vías: cada vehículo aporta al conteo en circulación dentro de su arista. En cada tick, la fase semafórica vigente se actualiza antes de mover los vehículos. Si un carro alcanzaría una intersección cuyo semáforo no favorece el eje de su vía, el motor lo detiene en el borde de la intersección, lo marca como `EN_COLA` y no le permite entrar ni cruzar el nodo. Solo cuando la fase pasa a ser favorable puede seleccionar la siguiente vía y continuar.
 
 La velocidad de tránsito se asigna al vehículo cuando se instancia y permanece como atributo propio del vehículo. Cuando el carro logra pasar por una intersección con semáforo en verde y entra a una nueva vía, continúa recorriendo esa nueva arista con la misma velocidad que ya tenía asignada.
 
 ### 6.4. Ambulancia
 
-Desde PC3 el usuario puede crear manualmente una ambulancia en un nodo de salida. La ambulancia cuenta como un vehículo más, pero con una representación visual distinta y una velocidad constante configurable. A medida que avanza, el usuario puede intervenir manualmente los semáforos desde PC3 para abrirle paso. La ambulancia sale del sistema al llegar a un nodo de salida.
+Desde PC3 el usuario puede crear manualmente una ambulancia en un **nodo de borde con spawn válido**. La ambulancia se representa distinto al tráfico normal, usa una velocidad constante configurable y sale del sistema al llegar nuevamente a un nodo de borde.
 
-En la implementación actual, la ambulancia se modela como un vehículo de tipo **AMBULANCIA** dentro del mismo motor de simulación. No se agregan todavía atributos visuales extra, porque para una futura visualización basta con conservar su `tipo`, su `via_actual` y su `posicion_en_via` en cada tick; con eso puede distinguirse del tráfico normal y verse moverse por el mapa.
+En la implementación actual, la ambulancia se modela como un vehículo de tipo **AMBULANCIA** dentro del mismo motor de simulación. Su diferencia operativa clave es la prioridad: mientras una ambulancia ocupe una vía, esa vía fuerza `score = 1.0` en PC0 y PC1 publica notas de sensores `1.0` para esa misma vía, de modo que PC2 también le otorgue prioridad total al eje correspondiente.
 
 ---
 
@@ -384,6 +412,12 @@ Responsabilidades:
 - Almacenar el historial completo de un día de simulación para estadísticas finales.
 
 > PC0 **no** forma parte del mecanismo principal de respaldo cuando ocurre una falla; su almacenamiento histórico es para análisis posterior.
+
+#### Generación de Vehículos Normales
+
+La generación normal de vehículos se evalúa por cada vía de entrada desde borde. En cada tick, PC0 recorre esas vías de entrada y aplica `simulacion.probabilidad_generacion_por_via`. Si la probabilidad activa la entrada, el motor crea en esa misma vía una cantidad aleatoria de vehículos entre `simulacion.min_nuevos_por_tick` y `simulacion.max_nuevos_por_tick`.
+
+Con la configuración actual, donde `probabilidad_generacion_por_via = 1`, cada vía de entrada genera vehículos en todos los ticks. Si `min_nuevos_por_tick = 25` y `max_nuevos_por_tick = 30`, entonces cada entrada crea entre 25 y 30 vehículos por tick. En una ciudad de 4x4 hay 8 entradas desde borde, por lo que el rango total esperado por tick queda entre 200 y 240 vehículos normales.
 
 ### 7.2. PC1
 
@@ -414,9 +448,30 @@ Responsabilidades:
 - Proveer monitoreo y consulta del estado actual mediante **REQ/REP**.
 - Enviar indicaciones directas al servicio de analítica para forzar cambios semafóricos.
 - Exponer el **backend primario** que el cliente consulta normalmente antes de considerar el respaldo de `PC2`.
-- Visualizar la ciudad como grafo sobre cuadrícula, con vías coloreadas según congestión e indicadores de fase activa.
+- Visualizar la ciudad como grafo sobre cuadrícula mediante una interfaz web local levantada junto con el backend principal.
+- Mantener separada la interfaz web de la lógica del backend: el servidor Python de la interfaz vive en `PC3/frontend/servidor.py`, mientras que HTML, CSS y JavaScript residen en `PC3/frontend/static/`.
+- Dibujar nodos de spawn/salida y vías sin texto fijo sobre el grafo; la información completa se muestra al pasar el cursor sobre nodos, vías o vehículos.
+- Colorear las vías según el `score` de congestión: verde para carga baja, amarillo para carga moderada y rojo para carga alta.
+- Incluir una leyenda de fases semafóricas: azul para fase horizontal y morado para fase vertical.
+- Mostrar en el inspector de cada vía un recuadro `SCORE` con fórmula, pesos configurados, qué evalúa cada sensor, notas parciales de cámara/espira/GPS y contribución de cada sensor.
+- Aumentar la legibilidad del inspector, la leyenda y los tooltips; en el detalle del `SCORE`, separar en líneas distintas la contribución `nota * peso` y la métrica concreta evaluada por el sensor.
+- Incluir un botón `Info de simulación` en el panel lateral. Al activarlo, el inspector muestra estadísticas globales del snapshot actual: hora simulada, tick rate, cantidad de intersecciones, vías, vehículos, ambulancias, semáforos por fase, vehículos parados/circulando y vehículos generados/despawneados en el último tick.
+- Mover `Info de simulación` a un botón flotante sobre el lado izquierdo del mapa. El botón despliega un panel independiente con las estadísticas globales, por lo que el panel derecho ya no incluye el bloque resumido de `Estado`.
+- Añadir un botón flotante de `Control manual` debajo de `Info de simulación`, con validación de intersección existente y tres acciones exclusivas: verde horizontal, verde vertical y automático.
+- Añadir un botón flotante de `Ambulancia` en la esquina inferior izquierda, con formulario para construir nodos `BORDE-X-X` válidos y enviar la solicitud al backend principal.
+- Mantener los paneles flotantes fuera del área de sus propios botones y evitar re-renderizarlos en cada tick mientras el usuario escribe, para no perder foco en los campos del formulario.
+- Reemplazar el mapa por una pantalla de cierre cuando la simulación alcance la hora final configurada, mostrando hora de inicio, hora de fin, tick final y hora real del último snapshot.
+- Mostrar en esa pantalla final el tiempo real observado, el tiempo teórico esperado por configuración y el overhead o diferencia entre ambos.
+- Mostrar en la barra superior tanto el reloj real de la máquina como el reloj lógico de simulación calculado desde `hora_inicio_simulada`, `tick_actual` y `minutos_simulados_por_tick`.
+- Refrescar la interfaz web con la misma cadencia configurada para el tick de PC0 (`simulacion.tick_segundos_reales`), evitando acumular solicitudes si el navegador aún está procesando el refresco anterior.
+- Recortar visualmente las aristas para que empiecen y terminen en el borde del nodo, no en su centro, y hacer que la punta de la flecha de dirección termine justo sobre el borde del círculo de la intersección destino.
+- Resaltar visualmente los vehículos en espera de semáforo (`EN_COLA`) en color rojo, manteniendo los vehículos en circulación en negro.
+- Dibujar los vehículos en circulación sobre el mismo segmento visual recortado de la arista, de borde a borde, para que al llegar al semáforo queden ya en el punto donde esperarían si el estado cambia a `EN_COLA`.
+- Dibujar los vehículos en cola fijos por fuera del borde del círculo de la intersección, tangentes al lado desde el que llegan; si hay varios esperando por la misma vía, se distribuyen alrededor de ese borde para evitar superposición directa.
+- Si el frontend detecta que un vehículo en circulación está a punto de tocar visualmente una intersección cuyo semáforo no favorece su eje, lo muestra ya como detenido en el borde, evitando que el círculo negro entre al nodo y luego salte hacia atrás.
+- Usar nodos de intersección, nodos de spawn/salida y vías con mayor tamaño visual para mejorar la lectura del mapa en tiempo real.
 - Gestionar el reloj de simulación (aceleración y ralentización).
-- Permitir al usuario crear ambulancias en nodos de salida.
+- Permitir al usuario crear ambulancias en nodos de borde con spawn válido.
 
 ---
 
@@ -480,14 +535,27 @@ Por esta razón, si se quiere una prueba completamente limpia y sin mezclar corr
 
 ### 8.4. Reloj de Simulación
 
-El sistema comparte un **reloj global de simulación** que representa un día de **12:00 a 18:00**. Por defecto:
-
-- **1 segundo real = 1 minuto simulado.**
-- Un cambio semafórico normal de 15 segundos en tiempo real equivale a 15 minutos dentro de la ciudad simulada.
+El sistema comparte un **reloj global de simulación** que representa un día lógico configurable. El ritmo real no está fijo en el código: se controla con `simulacion.tick_segundos_reales`, mientras que el avance lógico se controla con `simulacion.minutos_simulados_por_tick`. Con la configuración actual de prueba acelerada, `tick_segundos_reales = 0.03333` y `minutos_simulados_por_tick = 1`, por lo que cada 33 ms reales representan 1 minuto simulado.
 
 Desde PC3 esta relación puede acelerarse o ralentizarse. Todos los eventos (sensores, vehículos, semáforos y persistencia) usan el tiempo de simulación. El histórico en PC0 se indexa con este reloj.
 
-En la implementación actual, ese rango horario también aparece de forma explícita en `config/system_config.json` mediante `simulacion.hora_inicio_simulada` y `simulacion.hora_fin_simulada`. Por ahora estos parámetros se usan como referencia visible del reloj lógico y para enriquecer los logs de `PC0`; todavía no se usa `hora_fin_simulada` para detener automáticamente la simulación al final del día.
+En la implementación actual, ese rango horario también aparece de forma explícita en `config/system_config.json` mediante `simulacion.hora_inicio_simulada` y `simulacion.hora_fin_simulada`. `PC0` usa esos parámetros para calcular la hora simulada visible en logs y, cuando `simulacion.modo_bucle_infinito=false`, para detener automáticamente el motor cuando el reloj lógico alcanza la hora final del día. Antes de detenerse, `PC0` envía el snapshot del tick final, registra el cierre del día y muestra un mensaje ASCII de finalización de simulación.
+
+Si `simulacion.modo_bucle_infinito=true`, la lógica cambia deliberadamente: `PC0` ignora `hora_inicio_simulada` y `hora_fin_simulada`, fija el reloj lógico en un ciclo continuo `00:00 -> 23:59 -> 00:00`, no considera nunca la simulación como finalizada y, por tanto, tampoco dispara la pantalla final de cierre en la interfaz web de `PC3`.
+
+### 8.5. Overhead de Ejecución Real
+
+Al finalizar el día simulado, la interfaz web de PC3 contrasta el tiempo real observado contra el tiempo teórico esperado por configuración. El tiempo teórico se calcula como:
+
+$$T_{teorico} = \left\lceil \frac{\text{duracion\_simulada\_min}}{\text{minutos\_simulados\_por\_tick}} \right\rceil \cdot \text{tick\_segundos\_reales}$$
+
+El tiempo real observado se mide con la diferencia entre el timestamp real del primer snapshot de la corrida y el timestamp real del snapshot final. PC3 conserva esta metadata en su base de estado actual y la muestra en la pantalla final junto con el overhead:
+
+$$overhead = T_{real\_observado} - T_{teorico}$$
+
+Esta métrica captura la diferencia práctica producida por procesamiento, comunicación ZeroMQ, persistencia SQLite, renderizado/consulta web, planificación del sistema operativo y carga acumulada de la simulación.
+
+La snapshot operativa también incluye métricas agregadas del último tick (`creados`, `eliminados` y `movidos`). PC3 guarda esas métricas en la metadata de su base de estado actual para que la interfaz pueda mostrar, sin consultar el histórico completo, cuántos vehículos fueron generados y cuántos fueron despawneados en el último avance de simulación.
 
 ---
 
@@ -529,17 +597,20 @@ Sobre esa deduplicación se agrega una segunda restricción: la analítica solo 
 
 Cuando el usuario crea una ambulancia desde PC3:
 
-1. PC3 envía la solicitud por ZeroMQ a PC0, indicando el nodo de salida donde debe aparecer la ambulancia.
-2. PC0 instancia la ambulancia como una entidad vehicular especial dentro de la simulación.
-3. PC3 la visualiza con una representación diferenciada (por ejemplo, icono de sirena) respecto al tráfico normal.
+1. PC3 valida localmente que el nodo `BORDE-X-X` exista y tenga spawn válido.
+2. PC3 envía la solicitud por ZeroMQ a PC0, indicando el nodo de borde donde debe aparecer la ambulancia.
+3. PC0 instancia la ambulancia como una entidad vehicular especial dentro de la simulación.
+4. Mientras la ambulancia ocupa una vía, esa vía fuerza `score = 1.0`; PC1 y PC2 conservan esa prioridad al publicar y recalcular sensores/comandos.
+5. PC3 la visualiza con una representación diferenciada (por ejemplo, icono de sirena) respecto al tráfico normal.
 
 En el estado actual del proyecto, este flujo se implementa con un canal ZeroMQ dedicado de tipo **PUSH/PULL**:
 
 - El backend principal de `PC3` actúa como emisor de una `SolicitudAmbulancia`.
 - `PC0` mantiene un receptor específico para solicitudes de ambulancia.
 - La solicitud contiene al menos el `nodo_origen` y puede incluir una velocidad explícita.
-- Si el nodo recibido no corresponde a una entrada válida del sistema, `PC0` descarta la solicitud y la registra en logs.
+- Si el nodo recibido no corresponde a una entrada válida del sistema, la solicitud se rechaza y se registra en logs.
 - Si la solicitud es válida, `PC0` crea la ambulancia y la incorpora al siguiente ciclo operativo del motor de simulación.
+- Mientras la ambulancia permanezca en una vía, esa vía fuerza `score = 1.0` en `PC0` y las notas de sensores salen con `1.0` desde `PC1`, de modo que `PC2` priorice totalmente ese eje.
 - Si `PC3` está caído, la creación de ambulancias queda temporalmente indisponible para el usuario, aunque el núcleo operativo del sistema sigue funcionando.
 
 Operativamente, el flujo exacto queda así:
@@ -556,16 +627,17 @@ Operativamente, el flujo exacto queda así:
 Cuando el usuario fuerza un semáforo desde PC3:
 
 1. El backend principal de `PC3` envía la orden al servicio de analítica/control en PC2.
-2. La orden indica qué intersección y qué dirección o conflicto priorizar, y por cuánto tiempo de simulación mantener el forzado.
-3. PC2 ejecuta el forzado, suspendiendo temporalmente la lógica automática en esa intersección.
-4. Al finalizar el período indicado, la intersección regresa automáticamente al control por score.
+2. La orden indica qué intersección y qué eje priorizar, o si debe volver a `AUTO`.
+3. PC2 ejecuta el forzado, suspendiendo la lógica automática en esa intersección hasta nueva orden.
+4. Solo una intersección puede permanecer en manual a la vez; si el usuario quiere cambiarla, primero debe liberar la anterior.
 
 En la implementación actual este forzado se realiza así:
 
 - el backend principal emite una `SolicitudControlManual` por ZeroMQ hacia un receptor específico en `PC2`;
-- `PC2` valida la intersección, genera un `ComandoSemaforo` manual y lo envía inmediatamente a `PC0`;
+- `PC2` valida la intersección, verifica que no exista otra intersección ya retenida en modo manual y genera un `ComandoSemaforo` manual que envía inmediatamente a `PC0`;
 - el comando manual se refleja en el estado operativo por medio de los snapshots sucesivos generados por `PC0`;
-- mientras dura el forzado, la analítica automática no emite decisiones nuevas para esa intersección.
+- mientras dure el forzado, la analítica automática no emite decisiones nuevas para esa intersección;
+- al recibir la orden `AUTO`, `PC2` libera la retención manual y restituye de inmediato el programa automático vigente para esa intersección.
 - Si `PC3` no está disponible, no se aceptan nuevos controles manuales desde el respaldo.
 
 ---

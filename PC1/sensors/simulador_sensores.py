@@ -8,7 +8,7 @@ from common.mensajes.eventos import EventoSensor
 from common.mensajes.estado_operativo import SnapshotOperativo
 from common.modelos.trafico import CiudadMapa
 from common.utilidades.configuracion import cargar_configuracion
-from common.utilidades.logs import log
+from common.utilidades.logs import hora_simulada_desde_config, log
 from common.utilidades.normalizacion_sensores import (
     clasificar_nota_trafico,
     normalizar_camara,
@@ -24,8 +24,32 @@ def enviar_mensaje_persistencia(emisor: zmq.Socket, tipo: str, datos: dict[str, 
 def construir_datos(
     tipo_sensor: str,
     via: dict[str, object],
-    intervalo_espira_segundos: int,
+    prioridad_ambulancia: bool = False,
 ) -> dict[str, int | str]:
+    if prioridad_ambulancia:
+        if tipo_sensor == "camara":
+            return {
+                "volumen": int(via["vehiculos_en_espera"]),
+                "velocidad_promedio": round(float(via["velocidad_promedio"])),
+                "nota": 1.0,
+                "categoria_trafico": "ALTA",
+                "prioridad_ambulancia": True,
+            }
+        if tipo_sensor == "espira_inductiva":
+            return {
+                "vehiculos_en_transito": int(via["vehiculos_en_circulacion"]),
+                "nota": 1.0,
+                "categoria_trafico": "ALTA",
+                "prioridad_ambulancia": True,
+            }
+        velocidad = round(float(via["velocidad_promedio"])) if int(via["vehiculos_en_circulacion"]) > 0 else 0
+        return {
+            "nivel_congestion": "ALTA",
+            "velocidad_promedio": velocidad,
+            "nota": 1.0,
+            "categoria_trafico": "ALTA",
+            "prioridad_ambulancia": True,
+        }
     if tipo_sensor == "camara":
         volumen = int(via["vehiculos_en_espera"])
         velocidad_promedio = round(float(via["velocidad_promedio"]))
@@ -41,7 +65,6 @@ def construir_datos(
         nota = normalizar_espira(vehiculos_en_transito)
         return {
             "vehiculos_en_transito": vehiculos_en_transito,
-            "intervalo_segundos": intervalo_espira_segundos,
             "nota": nota,
             "categoria_trafico": clasificar_nota_trafico(nota),
         }
@@ -71,7 +94,6 @@ def main() -> None:
 
     vias_instrumentadas = {via.id_via: via.destino for via in ciudad_mapa.obtener_vias_instrumentadas()}
     intervalo = int(config["sensores"]["intervalo_publicacion_segundos"])
-    intervalo_espira = config["sensores"]["intervalo_espira_segundos"]
     tick_segundos = float(config["simulacion"]["tick_segundos_reales"])
     pasos_por_publicacion = max(1, int(round(intervalo / tick_segundos)))
     ultimo_tick_publicado = 0
@@ -84,12 +106,18 @@ def main() -> None:
 
         snapshot_operativo = SnapshotOperativo.desde_dict(mensaje["datos"])
         tick_actual = snapshot_operativo.tick_actual
+        hora_simulada = hora_simulada_desde_config(config, tick_actual)
         if tick_actual - ultimo_tick_publicado < pasos_por_publicacion:
             continue
         ultimo_tick_publicado = tick_actual
 
         vias_snapshot = {
             str(via["via_id"]): via for via in snapshot_operativo.vias if str(via["via_id"]) in vias_instrumentadas
+        }
+        vias_con_ambulancia = {
+            str(vehiculo["via_actual"])
+            for vehiculo in snapshot_operativo.vehiculos
+            if str(vehiculo.get("tipo", "")) == "AMBULANCIA"
         }
         log(
             "PC1-Sensores",
@@ -98,6 +126,7 @@ def main() -> None:
                 f"vehiculos_activos={len(snapshot_operativo.vehiculos)}, "
                 f"vias_observadas={len(vias_snapshot)}."
             ),
+            hora_simulada=hora_simulada,
         )
 
         for via_id, interseccion in vias_instrumentadas.items():
@@ -115,7 +144,7 @@ def main() -> None:
                     datos=construir_datos(
                         tipo_sensor=tipo_sensor,
                         via=via,
-                        intervalo_espira_segundos=intervalo_espira,
+                        prioridad_ambulancia=via_id in vias_con_ambulancia,
                     ),
                 )
                 publicador.send_multipart(
@@ -125,6 +154,7 @@ def main() -> None:
                 log(
                     "PC1-Sensores",
                     f"Publicado evento {tipo_sensor} para {via_id} -> {interseccion}: {evento.datos}",
+                    hora_simulada=hora_simulada,
                 )
 
 

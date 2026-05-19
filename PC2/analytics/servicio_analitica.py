@@ -11,7 +11,7 @@ from common.mensajes.control_manual import SolicitudControlManual
 from common.mensajes.eventos import EventoSensor
 from common.modelos.trafico import CiudadMapa
 from common.utilidades.configuracion import cargar_configuracion
-from common.utilidades.logs import log
+from common.utilidades.logs import hora_simulada_desde_config, log
 from common.utilidades.normalizacion_sensores import (
     clasificar_nota_trafico,
     normalizar_camara,
@@ -27,7 +27,7 @@ class ServicioAnalitica:
         self.eventos_por_interseccion_tick: dict[str, dict[int, dict[str, dict[str, EventoSensor]]]] = defaultdict(
             lambda: defaultdict(lambda: defaultdict(dict))
         )
-        self.ultimo_comando_por_interseccion: dict[str, tuple[str, float, float]] = {}
+        self.ultimo_comando_por_interseccion: dict[str, tuple[str, float, float, str]] = {}
         self.ultimo_tick_decidido_por_interseccion: dict[str, int] = {}
         self.controles_manuales_por_interseccion: dict[str, dict[str, int | str]] = {}
         self.ultimo_tick_observado = 0
@@ -41,57 +41,123 @@ class ServicioAnalitica:
         carga = {"tipo": "comando_semaforo", "datos": comando.a_dict()}
         self.emisor_pc0.send_json(carga)
 
+    def hora_simulada(self, tick_actual: int) -> str:
+        return hora_simulada_desde_config(self.config, tick_actual)
+
     def control_manual_activo(self, interseccion: str, tick_origen: int) -> bool:
         control = self.controles_manuales_por_interseccion.get(interseccion)
         if control is None:
             return False
         tick_fin = int(control["tick_fin"])
+        if tick_fin < 0:
+            return True
         if tick_origen <= tick_fin:
             return True
         del self.controles_manuales_por_interseccion[interseccion]
         log(
             "PC2-Analitica",
             f"Control manual liberado en {interseccion} al finalizar el tick {tick_fin}.",
+            hora_simulada=self.hora_simulada(tick_origen),
         )
         return False
+
+    def obtener_interseccion_manual_activa(self) -> str | None:
+        for interseccion, control in self.controles_manuales_por_interseccion.items():
+            if int(control["tick_fin"]) < 0:
+                return interseccion
+        return None
+
+    def liberar_control_manual(self, interseccion: str) -> None:
+        interseccion_estado = self.ciudad_mapa.intersecciones[interseccion]
+        self.controles_manuales_por_interseccion.pop(interseccion, None)
+        fase = interseccion_estado.fase_prioritaria
+        tiempo_verde = float(interseccion_estado.duracion_fase_prioritaria)
+        tiempo_opuesto = float(interseccion_estado.duracion_fase_secundaria)
+        tick_base = max(
+            self.ultimo_tick_observado,
+            self.ultimo_tick_decidido_por_interseccion.get(interseccion, 0),
+        )
+        comando = ComandoSemaforo.crear(
+            interseccion=interseccion,
+            fase_ganadora=fase,
+            tiempo_verde=tiempo_verde,
+            tiempo_opuesto=tiempo_opuesto,
+            razon="Control manual liberado desde backend; la interseccion vuelve al programa automatico vigente.",
+            tick_origen=tick_base,
+            modo="AUTOMATICO",
+        )
+        self.ciudad_mapa.aplicar_programacion_semaforo(
+            interseccion_id=interseccion,
+            fase_ganadora=fase,
+            tiempo_verde=tiempo_verde,
+            tiempo_opuesto=tiempo_opuesto,
+        )
+        self.ultimo_comando_por_interseccion[interseccion] = (
+            fase,
+            tiempo_verde,
+            tiempo_opuesto,
+            comando.modo,
+        )
+        self.controlador.aplicar_comando(comando)
+        self.persistir_comando(comando)
+        log(
+            "PC2-Analitica",
+            f"Control manual liberado en {interseccion}; vuelve a modo automatico.",
+            hora_simulada=self.hora_simulada(tick_base),
+        )
 
     def aplicar_control_manual(self, solicitud: SolicitudControlManual) -> None:
         if solicitud.interseccion not in self.ciudad_mapa.intersecciones:
             log(
                 "PC2-Analitica",
                 f"Solicitud de control manual ignorada: {solicitud.interseccion} no existe.",
+                hora_simulada=self.hora_simulada(self.ultimo_tick_observado),
+            )
+            return
+        if solicitud.fase_ganadora == "AUTO":
+            self.liberar_control_manual(solicitud.interseccion)
+            return
+        interseccion_manual_activa = self.obtener_interseccion_manual_activa()
+        if interseccion_manual_activa is not None and interseccion_manual_activa != solicitud.interseccion:
+            log(
+                "PC2-Analitica",
+                (
+                    f"Solicitud de control manual ignorada: {solicitud.interseccion} no puede tomar control "
+                    f"mientras {interseccion_manual_activa} siga en manual."
+                ),
+                hora_simulada=self.hora_simulada(self.ultimo_tick_observado),
             )
             return
         tick_base = max(
             self.ultimo_tick_observado,
             self.ultimo_tick_decidido_por_interseccion.get(solicitud.interseccion, 0),
         )
-        tick_fin = tick_base + max(1, solicitud.duracion_ticks)
         self.controles_manuales_por_interseccion[solicitud.interseccion] = {
             "fase_ganadora": solicitud.fase_ganadora,
-            "tick_fin": tick_fin,
+            "tick_fin": -1,
         }
         comando = ComandoSemaforo.crear(
             interseccion=solicitud.interseccion,
             fase_ganadora=solicitud.fase_ganadora,
-            tiempo_verde=float(max(1, solicitud.duracion_ticks)),
-            tiempo_opuesto=float(max(1, solicitud.duracion_ticks)),
+            tiempo_verde=-1.0,
+            tiempo_opuesto=-1.0,
             razon=(
                 "Control manual forzado desde backend. "
-                f"Se mantiene la fase {solicitud.fase_ganadora} hasta el tick {tick_fin}."
+                f"Se mantiene la fase {solicitud.fase_ganadora} hasta nueva orden."
             ),
             tick_origen=tick_base,
+            modo="MANUAL",
         )
-        self.ciudad_mapa.aplicar_programacion_semaforo(
+        self.ciudad_mapa.forzar_programacion_semaforo(
             interseccion_id=solicitud.interseccion,
             fase_ganadora=solicitud.fase_ganadora,
-            tiempo_verde=comando.tiempo_verde,
-            tiempo_opuesto=comando.tiempo_opuesto,
+            duracion_ticks=comando.tiempo_verde,
         )
         self.ultimo_comando_por_interseccion[solicitud.interseccion] = (
             solicitud.fase_ganadora,
             comando.tiempo_verde,
             comando.tiempo_opuesto,
+            comando.modo,
         )
         self.controlador.aplicar_comando(comando)
         self.persistir_comando(comando)
@@ -99,9 +165,9 @@ class ServicioAnalitica:
             "PC2-Analitica",
             (
                 f"Control manual aplicado en {solicitud.interseccion}: "
-                f"fase={solicitud.fase_ganadora}, duracion_ticks={solicitud.duracion_ticks}, "
-                f"vigente_hasta={tick_fin}."
+                f"fase={solicitud.fase_ganadora}, vigente_hasta=nueva_orden."
             ),
+            hora_simulada=self.hora_simulada(tick_base),
         )
 
     def obtener_nota_camara(self, datos: dict[str, object]) -> float:
@@ -175,7 +241,21 @@ class ServicioAnalitica:
     def decidir_fase(
         self, interseccion: str, score_horizontal: float, score_vertical: float
     ) -> tuple[str, float, float, str]:
-        gap = abs(score_horizontal - score_vertical)
+        if score_horizontal > 0.0 and score_vertical == 0.0:
+            return (
+                "HORIZONTAL",
+                30.0,
+                0.0,
+                "El eje vertical no tiene carga (score=0) y el horizontal si; se libera paso total al horizontal.",
+            )
+        if score_vertical > 0.0 and score_horizontal == 0.0:
+            return (
+                "VERTICAL",
+                30.0,
+                0.0,
+                "El eje horizontal no tiene carga (score=0) y el vertical si; se libera paso total al vertical.",
+            )
+        gap = min(abs(score_horizontal - score_vertical), 1.0)
         fase_actual = self.ciudad_mapa.intersecciones[interseccion].fase_activa
         if score_horizontal > score_vertical:
             fase = "HORIZONTAL"
@@ -200,6 +280,7 @@ class ServicioAnalitica:
                 f"Evento recibido en {evento.interseccion}, via {evento.via_id}, "
                 f"sensor {evento.tipo_sensor}, tick={evento.tick_origen}."
             ),
+            hora_simulada=self.hora_simulada(evento.tick_origen),
         )
 
         ultimo_tick_decidido = self.ultimo_tick_decidido_por_interseccion.get(evento.interseccion, -1)
@@ -224,7 +305,7 @@ class ServicioAnalitica:
         )
         self.ultimo_tick_decidido_por_interseccion[evento.interseccion] = evento.tick_origen
         self.depurar_ticks_antiguos(evento.interseccion, evento.tick_origen)
-        firma_comando = (fase, tiempo_verde, tiempo_opuesto)
+        firma_comando = (fase, tiempo_verde, tiempo_opuesto, "AUTOMATICO")
         if self.ultimo_comando_por_interseccion.get(evento.interseccion) == firma_comando:
             return
 
@@ -263,6 +344,7 @@ class ServicioAnalitica:
                 f"score_vertical={score_vertical:.4f}. "
                 f"Detalle por via: {detalle_vias}"
             ),
+            hora_simulada=self.hora_simulada(evento.tick_origen),
         )
         self.controlador.aplicar_comando(comando)
         self.persistir_comando(comando)

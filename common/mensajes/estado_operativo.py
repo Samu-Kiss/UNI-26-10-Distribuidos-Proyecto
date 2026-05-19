@@ -13,6 +13,7 @@ class SnapshotOperativo:
     intersecciones: list[dict[str, Any]]
     vias: list[dict[str, Any]]
     vehiculos: list[dict[str, Any]]
+    metricas_tick: dict[str, Any]
 
     def a_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -25,6 +26,7 @@ class SnapshotOperativo:
         intersecciones: list[dict[str, Any]],
         vias: list[dict[str, Any]],
         vehiculos: list[dict[str, Any]],
+        metricas_tick: dict[str, Any] | None = None,
         fuente: str = "PC0",
         version_contrato: int = 1,
     ) -> "SnapshotOperativo":
@@ -36,6 +38,7 @@ class SnapshotOperativo:
             intersecciones=intersecciones,
             vias=vias,
             vehiculos=vehiculos,
+            metricas_tick=metricas_tick or {},
         )
 
     @classmethod
@@ -48,4 +51,5 @@ class SnapshotOperativo:
             intersecciones=list(datos["intersecciones"]),
             vias=list(datos["vias"]),
             vehiculos=list(datos["vehiculos"]),
+            metricas_tick=dict(datos.get("metricas_tick", {})),
         )

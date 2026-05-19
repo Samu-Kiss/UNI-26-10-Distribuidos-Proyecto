@@ -6,6 +6,7 @@ import zmq
 
 from common.mensajes.ambulancias import SolicitudAmbulancia
 from common.mensajes.control_manual import SolicitudControlManual
+from common.modelos.trafico import CiudadMapa
 from common.utilidades.mensajeria_zmq import (
     configurar_emisor_mejor_esfuerzo,
     enviar_json_mejor_esfuerzo,
@@ -26,6 +27,7 @@ class BackendOperativo:
         self.repositorio = repositorio
         self.rol_backend = rol_backend
         self.permitir_operaciones_activas = permitir_operaciones_activas
+        self.ciudad_mapa = CiudadMapa.desde_config(config["ciudad"])
         self.contexto = zmq.Context.instance()
         self.emisor_ambulancias = self.contexto.socket(zmq.PUSH)
         self.emisor_ambulancias.connect(config["zmq"]["pc0"]["solicitudes_ambulancia"])
@@ -88,8 +90,21 @@ class BackendOperativo:
                     "backend_atendio": self.rol_backend,
                     "error": "operacion_no_disponible_en_respaldo",
                 }
+            nodo_origen = str(solicitud["nodo_origen"]).upper()
+            if not self.ciudad_mapa.es_nodo_borde(nodo_origen):
+                return {
+                    "ok": False,
+                    "backend_atendio": self.rol_backend,
+                    "error": "nodo_no_encontrado",
+                }
+            if not self.ciudad_mapa.obtener_vias_salida(nodo_origen):
+                return {
+                    "ok": False,
+                    "backend_atendio": self.rol_backend,
+                    "error": "nodo_sin_spawn",
+                }
             solicitud_ambulancia = SolicitudAmbulancia.crear(
-                nodo_origen=str(solicitud["nodo_origen"]),
+                nodo_origen=nodo_origen,
                 velocidad=(
                     float(solicitud["velocidad"])
                     if solicitud.get("velocidad") is not None
@@ -112,15 +127,26 @@ class BackendOperativo:
                     "backend_atendio": self.rol_backend,
                     "error": "operacion_no_disponible_en_respaldo",
                 }
-            if self.repositorio.obtener_estado_interseccion(str(solicitud["interseccion"])) is None:
+            interseccion = str(solicitud["interseccion"]).upper()
+            if not self.ciudad_mapa.es_interseccion(interseccion):
                 return {
                     "ok": False,
                     "backend_atendio": self.rol_backend,
                     "error": "interseccion_no_encontrada",
                 }
+            fase_ganadora = str(solicitud["fase_ganadora"]).upper()
+            manuales_activas = self.repositorio.listar_intersecciones_en_modo_manual()
+            manual_activa = manuales_activas[0] if manuales_activas else None
+            if fase_ganadora != "AUTO" and manual_activa is not None and manual_activa != interseccion:
+                return {
+                    "ok": False,
+                    "backend_atendio": self.rol_backend,
+                    "error": "control_manual_activo_en_otra_interseccion",
+                    "interseccion_activa": manual_activa,
+                }
             solicitud_control = SolicitudControlManual.crear(
-                interseccion=str(solicitud["interseccion"]),
-                fase_ganadora=str(solicitud["fase_ganadora"]),
+                interseccion=interseccion,
+                fase_ganadora=fase_ganadora,
                 duracion_ticks=int(solicitud["duracion_ticks"]),
             )
             aceptada = enviar_json_mejor_esfuerzo(

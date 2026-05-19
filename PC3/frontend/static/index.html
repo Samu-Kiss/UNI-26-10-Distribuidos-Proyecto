@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PC3 Trafico Urbano</title>
+  <link rel="stylesheet" href="/static/styles.css">
+
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">PC3 Trafico Urbano</div>
+      <div class="metrics">
+        <span><span id="statusDot" class="dot"></span><span id="statusText">conectando</span></span>
+        <span>tick <strong id="tick">--</strong></span>
+        <span>real <strong id="realClock">--</strong></span>
+        <span>hora en simulacion <strong id="simClock">--</strong></span>
+        <span>actualizado <strong id="updated">--</strong></span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="map-wrap" id="mapWrap">
+        <svg id="city" role="img" aria-label="Estado operativo de la ciudad"></svg>
+        <button id="simInfoButton" class="sim-toggle" type="button">Info de simulacion</button>
+        <button id="manualControlButton" class="sim-toggle secondary" type="button">Control manual</button>
+        <button id="ambulanceButton" class="sim-toggle bottom" type="button">Ambulancia</button>
+        <aside id="simInfoPanel" class="sim-panel" aria-live="polite"></aside>
+        <aside id="manualControlPanel" class="sim-panel" aria-live="polite"></aside>
+        <aside id="ambulancePanel" class="sim-panel bottom" aria-live="polite"></aside>
+        <div id="endScreen" class="end-screen" aria-live="polite"></div>
+      </section>
+
+      <aside class="side">
+        <section class="inspect">
+          <h2>Inspector</h2>
+          <div id="inspector" class="empty">Sin seleccion</div>
+        </section>
+        <section class="side-section">
+          <h2>Leyenda</h2>
+          <div class="legend">
+            <div class="legend-row"><span class="swatch" style="background: var(--green)"></span><span>score menor a 0.40</span></div>
+            <div class="legend-row"><span class="swatch" style="background: var(--yellow)"></span><span>score entre 0.40 y 0.70</span></div>
+            <div class="legend-row"><span class="swatch" style="background: var(--red)"></span><span>score mayor a 0.70</span></div>
+            <div class="legend-row"><span class="swatch" style="background: var(--blue)"></span><span>semaforo en fase horizontal</span></div>
+            <div class="legend-row"><span class="swatch" style="background: var(--violet)"></span><span>semaforo en fase vertical</span></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/static/app.js" defer></script>
+
+</body>
+</html>

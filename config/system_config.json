@@ -11,39 +11,35 @@
         "filas": "Numero de filas de intersecciones en la cuadricula.",
         "columnas": "Numero de columnas de intersecciones en la cuadricula."
       },
-      "filas": 2,
-      "columnas": 2
+      "filas": 4,
+      "columnas": 4
     },
     "longitud_vias": {
       "_comentarios": {
         "min": "Longitud minima posible para una via.",
         "max": "Longitud maxima posible para una via."
       },
-      "min": 100,
-      "max": 200
+      "min": 3000,
+      "max": 5000
     },
     "semilla": 17
   },
   "sensores": {
     "_comentarios": {
       "tipos": "Lista de sensores logicos activos por via instrumentada.",
-      "intervalo_publicacion_segundos": "Cada cuantos segundos reales PC1 publica eventos de sensores a partir de snapshots recibidos.",
-      "intervalo_espira_segundos": "Ventana de tiempo asociada a la medicion de la espira inductiva."
+      "intervalo_publicacion_segundos": "Cada cuantos segundos reales PC1 publica eventos de sensores a partir de snapshots recibidos."
     },
     "tipos": [
       "camara",
       "espira_inductiva",
       "gps"
     ],
-    "intervalo_publicacion_segundos": 2,
-    "intervalo_espira_segundos": 10
+    "intervalo_publicacion_segundos": 0.1
   },
   "analitica": {
     "_comentarios": {
-      "umbral_congestion": "Umbral general de referencia para considerar congestion en la logica analitica.",
       "pesos": "Ponderacion de cada sensor en el score final por via."
     },
-    "umbral_congestion": 0.6,
     "pesos": {
       "_comentarios": {
         "camara": "Peso de la nota de cola capturada por camara.",
@@ -61,20 +57,24 @@
       "minutos_simulados_por_tick": "Cuantos minutos del reloj de simulacion representa cada tick.",
       "hora_inicio_simulada": "Hora inicial del reloj logico de la simulacion en formato HH:MM.",
       "hora_fin_simulada": "Hora final de referencia del reloj logico de la simulacion en formato HH:MM.",
+      "modo_bucle_infinito": "Si es true, la simulacion ignora hora_inicio_simulada y hora_fin_simulada, arranca a las 00:00 y al pasar de 23:59 vuelve a 00:00 sin detenerse.",
       "intervalo_snapshot_ticks": "Cada cuantos ticks PC0 emite un nuevo snapshot_operativo a otros PCs.",
       "probabilidad_generacion_por_via": "Probabilidad de intentar generar vehiculos en cada via de entrada en un tick.",
-      "max_nuevos_por_tick": "Limite total de vehiculos normales creados en un tick.",
+      "min_nuevos_por_tick": "Minimo de vehiculos normales que se crean por cada via de entrada activa en un tick.",
+      "max_nuevos_por_tick": "Maximo de vehiculos normales que se crean por cada via de entrada activa en un tick.",
       "velocidad_inicial": "Rango de velocidad con el que nacen los vehiculos normales.",
       "ambulancias": "Parametros especificos de ambulancias.",
       "semilla": "Semilla pseudoaleatoria del motor de simulacion vehicular."
     },
-    "tick_segundos_reales": 5,
+    "tick_segundos_reales": 0.1,
     "minutos_simulados_por_tick": 1,
     "hora_inicio_simulada": "12:00",
-    "hora_fin_simulada": "18:00",
+    "hora_fin_simulada": "23:00",
+    "modo_bucle_infinito": true,
     "intervalo_snapshot_ticks": 1,
-    "probabilidad_generacion_por_via": 0.2,
-    "max_nuevos_por_tick": 3,
+    "probabilidad_generacion_por_via": 0.01,
+    "min_nuevos_por_tick": 1,
+    "max_nuevos_por_tick": 5,
     "velocidad_inicial": {
       "_comentarios": {
         "min": "Velocidad minima posible de un vehiculo normal al crearse.",
@@ -87,9 +87,22 @@
       "_comentarios": {
         "velocidad_constante": "Velocidad fija que se asigna por defecto a una ambulancia si no se especifica otra."
       },
-      "velocidad_constante": 45
+      "velocidad_constante": 60
     },
     "semilla": 99
+  },
+  "frontend": {
+    "_comentarios": {
+      "pc3": "Servidor HTTP local de visualizacion operativa levantado por el backend principal de PC3."
+    },
+    "pc3": {
+      "_comentarios": {
+        "host": "Interfaz de red donde se expone la visualizacion local.",
+        "puerto": "Puerto inicial; si esta ocupado, PC3 intenta los siguientes puertos disponibles."
+      },
+      "host": "127.0.0.1",
+      "puerto": 8080
+    }
   },
   "zmq": {
     "_comentarios": {

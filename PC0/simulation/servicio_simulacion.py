@@ -27,19 +27,45 @@ def procesar_comandos_pendientes(receptor_comandos: zmq.Socket, motor: MotorSimu
         comando = ComandoSemaforo.desde_dict(carga)
         motor.aplicar_comando_semaforo(comando)
         comandos_aplicados += 1
+        if comando.modo == "MANUAL" and comando.tiempo_verde < 0:
+            detalle_duracion = "hasta nueva orden"
+        else:
+            detalle_duracion = f"verde={comando.tiempo_verde:.2f}, opuesto={comando.tiempo_opuesto:.2f}"
         log(
             "PC0-Simulacion",
             (
                 f"Comando aplicado en {comando.interseccion}: "
-                f"fase={comando.fase_ganadora}, verde={comando.tiempo_verde:.2f}, "
-                f"opuesto={comando.tiempo_opuesto:.2f}"
+                f"modo={comando.modo}, fase={comando.fase_ganadora}, "
+                f"{detalle_duracion}"
             ),
+            hora_simulada=motor.obtener_hora_simulada_actual(),
         )
     return comandos_aplicados
 
 
 def enviar_mensaje(emisor: zmq.Socket, tipo: str, datos: dict[str, object]) -> None:
     emisor.send_json({"tipo": tipo, "datos": datos})
+
+
+def imprimir_fin_dia_simulado(hora_simulada: str, tick: int) -> None:
+    ancho = 64
+    borde = "+" + "=" * (ancho - 2) + "+"
+    lineas = [
+        "",
+        borde,
+        "|" + " " * (ancho - 2) + "|",
+        "|" + "FIN DEL DIA DE SIMULACION".center(ancho - 2) + "|",
+        "|" + "GESTION INTELIGENTE DE TRAFICO URBANO".center(ancho - 2) + "|",
+        "|" + " " * (ancho - 2) + "|",
+        "|" + f"Hora simulada final: {hora_simulada}".center(ancho - 2) + "|",
+        "|" + f"Tick final: {tick}".center(ancho - 2) + "|",
+        "|" + " " * (ancho - 2) + "|",
+        borde,
+    ]
+    print(
+        "\n".join(lineas),
+        flush=True,
+    )
 
 
 def procesar_solicitudes_ambulancia(
@@ -62,6 +88,7 @@ def procesar_solicitudes_ambulancia(
             log(
                 "PC0-Simulacion",
                 f"Solicitud de ambulancia descartada: nodo {solicitud.nodo_origen} no tiene via de entrada.",
+                hora_simulada=motor.obtener_hora_simulada_actual(),
             )
             continue
         ambulancias_creadas += 1
@@ -71,6 +98,7 @@ def procesar_solicitudes_ambulancia(
                 f"Ambulancia {ambulancia.id_vehiculo} creada en {solicitud.nodo_origen} "
                 f"con velocidad {ambulancia.velocidad:.2f}."
             ),
+            hora_simulada=motor.obtener_hora_simulada_actual(),
         )
     return ambulancias_creadas
 
@@ -79,7 +107,11 @@ def main() -> None:
     raiz = Path(__file__).resolve().parents[2]
     config = cargar_configuracion(raiz / "config/system_config.json")
     ciudad_mapa = CiudadMapa.desde_config(config["ciudad"])
-    motor = MotorSimulacion(ciudad_mapa=ciudad_mapa, config_simulacion=config["simulacion"])
+    motor = MotorSimulacion(
+        ciudad_mapa=ciudad_mapa,
+        config_simulacion=config["simulacion"],
+        pesos_sensores=config["analitica"]["pesos"],
+    )
 
     contexto = zmq.Context()
     receptor_comandos = contexto.socket(zmq.PULL)
@@ -123,6 +155,7 @@ def main() -> None:
                     f"direccion={vehiculo.direccion_actual}, velocidad={vehiculo.velocidad:.2f}, "
                     f"estado={vehiculo.estado}, tick={resultado.tick}, hora_simulada={hora_simulada}."
                 ),
+                hora_simulada=hora_simulada,
             )
 
         for vehiculo in resultado.vehiculos_eliminados:
@@ -134,13 +167,14 @@ def main() -> None:
                     f"direccion={vehiculo['direccion_actual']}, velocidad={float(vehiculo['velocidad']):.2f}, "
                     f"motivo={vehiculo['motivo']}, tick={resultado.tick}, hora_simulada={hora_simulada}."
                 ),
+                hora_simulada=hora_simulada,
             )
 
         if (
             ultimo_tick_snapshot_enviado == 0
             or resultado.tick - ultimo_tick_snapshot_enviado >= intervalo_snapshot_ticks
         ):
-            snapshot_operativo = motor.generar_snapshot_operativo()
+            snapshot_operativo = motor.generar_snapshot_operativo(resultado_tick=resultado)
             snapshot_dict = snapshot_operativo.a_dict()
 
             enviar_mensaje(emisor_estado_pc1, "snapshot_operativo", snapshot_dict)
@@ -163,7 +197,20 @@ def main() -> None:
                 f"comandos_aplicados={comandos_aplicados}, ambulancias_creadas={ambulancias_creadas}, "
                 f"snapshot_enviado={snapshot_enviado}."
             ),
+            hora_simulada=hora_simulada,
         )
+        if motor.simulacion_finalizada():
+            log(
+                "PC0-Simulacion",
+                (
+                    "Hora final de simulacion alcanzada. "
+                    "PC0 detiene la generacion de ticks y cierra el dia simulado."
+                ),
+                hora_simulada=hora_simulada,
+            )
+            time.sleep(0.25)
+            imprimir_fin_dia_simulado(hora_simulada=hora_simulada, tick=resultado.tick)
+            return
         time.sleep(intervalo_tick)
 
 

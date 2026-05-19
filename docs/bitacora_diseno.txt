@@ -34,7 +34,7 @@ Sensores
   - GPS
 - Los sensores funcionan como getters del estado de la arista.
 - La camara mide cola u ocupacion inmediata.
-- La espira mide flujo vehicular en una ventana de tiempo.
+- La espira mide vehiculos que aun circulan por la via.
 - El GPS mide velocidad promedio como senal complementaria.
 
 Score por via
@@ -71,6 +71,8 @@ Semaforos y tiempos
 - Formula:
   - T_verde = 15 + 15 * gap
   - T_opuesto = 30 - T_verde
+- Excepcion operativa:
+  - si una direccion tiene score 0 y la otra score > 0, la direccion con carga recibe los 30 segundos completos
 
 Tiempo de simulacion
 - Existe un reloj global compartido.
@@ -141,3 +143,211 @@ Arranque
 
 Nota
 - Aunque el PDF menciona "McCuber", se asume que es un error o inconsistencia del enunciado hasta que el docente aclare lo contrario.
+
+2026-05-17 22:27 - Logs con hora real y hora simulada
+- Se actualiza el formato central de logs para imprimir:
+  - hora real del computador
+  - hora simulada del tick asociado
+  - nombre del proceso
+  - mensaje operativo
+- Formato acordado:
+  - [real=HH:MM:SS] [sim=HH:MM] [Proceso] mensaje
+- La hora simulada se calcula desde:
+  - simulacion.hora_inicio_simulada
+  - simulacion.minutos_simulados_por_tick
+  - tick_actual o tick_origen del mensaje
+- Cuando un proceso no tiene contexto de simulacion, se imprime sim=--.
+- Se actualizan logs de PC0, PC1, PC2 y PC3 donde existe tick o snapshot asociado.
+
+2026-05-17 22:34 - Cierre automatico del dia simulado en PC0
+- Se decide que PC0 debe detener la simulacion cuando el reloj logico alcanza simulacion.hora_fin_simulada.
+- La validacion ocurre despues de avanzar el tick y enviar el snapshot final, para que PC1, PC2, PC3 y la base historica reciban la ultima foto del dia.
+- Al finalizar, PC0 registra un log de cierre e imprime un bloque en arte ASCII indicando:
+  - finalizacion del dia de simulacion
+  - hora simulada final
+  - tick final
+- Se deja el arte ASCII como ultimo elemento visible del cierre normal de PC0, despues de los logs del tick final y del log de cierre.
+- Si PC0 se ejecuta con scripts/start_pc0.sh, la salida del proceso principal activa el trap del script y termina tambien el proceso de BD historica iniciado en segundo plano.
+- Ajuste posterior: se reemplaza el arte tipografico grande por un cartel de ancho fijo para evitar deformaciones en terminales con diferentes fuentes o espacios.
+- Ajuste posterior adicional: si simulacion.modo_bucle_infinito=true, este cierre automatico se desactiva; la simulacion ignora hora_inicio_simulada y hora_fin_simulada, arranca a las 00:00, al pasar de 23:59 vuelve a 00:00 y nunca muestra cartel final de cierre por tiempo.
+
+2026-05-17 22:45 - Interfaz web local de PC3
+- Se implementa una interfaz HTTP local levantada por el backend principal de PC3.
+- Al ejecutar PC3, el backend imprime el enlace localhost de visualizacion.
+- La interfaz consume /api/estado y lee la base principal de PC3.
+- El grafo se dibuja sin texto fijo sobre la ciudad:
+  - nodos de interseccion
+  - nodos de borde usados como spawn o salida
+  - vias dirigidas
+  - vehiculos y ambulancias
+- Las vias se colorean por score:
+  - verde: score bajo
+  - amarillo: score moderado
+  - rojo: score alto
+- Al pasar el cursor por una via, nodo o vehiculo se muestra toda la informacion disponible en un tooltip y en el panel inspector.
+- Se agrega configuracion frontend.pc3.host y frontend.pc3.puerto.
+
+2026-05-17 23:38 - Ajuste visual de vehiculos y mapa en interfaz PC3
+- Se decide que los vehiculos normales en estado EN_COLA se dibujen en rojo para indicar espera ante semaforo.
+- Los vehiculos normales en estado CIRCULANDO permanecen en negro.
+- Se aumenta el tamano visual de:
+  - vias/aristas
+  - nodos de interseccion
+  - nodos de borde usados como spawn o salida
+- Tambien se aumenta el area invisible de hover sobre las vias para facilitar la inspeccion con cursor.
+
+2026-05-17 23:45 - Minimo configurable de vehiculos por tick
+- Se agrega simulacion.min_nuevos_por_tick al archivo config/system_config.json.
+- El motor de PC0 conserva simulacion.max_nuevos_por_tick como limite superior.
+- Si la generacion probabilistica no alcanza el minimo configurado, PC0 completa con vias de entrada restantes hasta llegar al minimo efectivo.
+- El minimo efectivo nunca supera:
+  - max_nuevos_por_tick
+  - la cantidad de vias de entrada disponibles
+- Esto permite regular tanto el piso como el techo de carga vehicular por tick desde configuracion.
+
+2026-05-18 00:12 - Recuadro SCORE e inspeccion de calculo por via
+- Se unifica el score publicado por PC0 con la formula ponderada usada por PC2:
+  - camara: vehiculos en espera
+  - espira inductiva: vehiculos en circulacion
+  - GPS: velocidad promedio
+- El estado textual de congestion de la via se deriva del score:
+  - BAJA: score menor a 0.40
+  - NORMAL: score entre 0.40 y 0.70
+  - ALTA: score mayor a 0.70
+- La interfaz web de PC3 recalcula el score para mostrarlo en el inspector y colorear el mapa de forma consistente.
+- En el inspector de cada via se agrega un recuadro SCORE con:
+  - formula usada
+  - ponderacion de cada sensor
+  - nota parcial de cada sensor
+  - contribucion de cada sensor al score final
+  - aviso si el score guardado en BD difiere del score recalculado con las metricas actuales.
+
+2026-05-18 00:20 - Claridad semantica del recuadro SCORE
+- Se ajusta el inspector de vias para explicar que evalua cada sensor dentro del recuadro SCORE:
+  - camara: vehiculos en cola al final de la via antes del semaforo
+  - espira inductiva: vehiculos que aun circulan por la via
+  - GPS: lentitud del flujo segun velocidad promedio
+- La etiqueta visible "espera" se reemplaza por "vehiculos en cola" para que sea mas clara en la interfaz.
+
+2026-05-18 00:31 - Eliminacion de umbral de congestion no usado
+- Se elimina analitica.umbral_congestion de config/system_config.json porque no tenia efecto real en la simulacion.
+- La clasificacion visible de congestion sigue usando los rangos derivados del score:
+  - BAJA: score menor a 0.40
+  - NORMAL: score entre 0.40 y 0.70
+  - ALTA: score mayor a 0.70
+- El bloque analitica queda enfocado en los pesos de camara, espira inductiva y GPS.
+
+2026-05-18 00:45 - Pantalla final de simulacion en PC3
+- Al detectar que el tick actual alcanza la hora final configurada, la interfaz de PC3 oculta el mapa de la ciudad.
+- En su lugar se muestra una pantalla de cierre con la estetica de la aplicacion.
+- La pantalla final presenta:
+  - hora de inicio simulada
+  - hora de fin simulada
+  - tick final
+  - hora real del ultimo snapshot registrado
+
+2026-05-18 01:00 - Ajuste de legibilidad del mapa PC3
+- Se aumenta el grosor base de las vias verdes para mejorar su lectura.
+- Se aumenta el radio visual de los nodos de interseccion.
+- Los vehiculos en estado EN_COLA se dibujan antes del circulo de la interseccion, sobre la via por la que llegan.
+- Si un vehiculo espera viniendo desde la izquierda, queda visualmente a la izquierda del circulo; si viene desde otro eje, queda sobre ese eje de llegada.
+
+2026-05-18 01:08 - Flechas y recorte visual de aristas en PC3
+- Las aristas se recortan visualmente para iniciar y terminar en el borde del nodo, no en el centro del circulo.
+- Las flechas de direccion se agrandan y se ubican antes del nodo destino para evitar que queden tapadas por el circulo de la interseccion.
+
+2026-05-18 01:32 - Temporizacion semaforica por contador ciclico
+- Se reemplaza el reinicio de fase ante cada comando automatico por un contador ciclico fijo de 30 ticks por interseccion.
+- PC2 sigue calculando la prioridad con gap = abs(score_horizontal - score_vertical).
+- La ventana del eje prioritario queda como 15 + 15 * gap ticks y la ventana opuesta como 30 - ventana_prioritaria.
+- PC0 no reinicia el contador cuando llega una orden automatica; solo recalcula la particion vigente del ciclo.
+- El eje opuesto ocupa el primer tramo del contador y el eje prioritario ocupa el tramo final.
+- Ejemplo: si VERTICAL recibe 23 ticks y HORIZONTAL 7, el contador 1..7 favorece HORIZONTAL y el contador 8..30 favorece VERTICAL.
+- El control manual queda marcado como modo MANUAL para forzar inmediatamente la fase solicitada durante su duracion, sin confundirse con el ciclo automatico.
+- La base de estado actual y el inspector de PC3 conservan campos del ciclo: contador, total del ciclo, fase prioritaria, ventanas prioritaria/secundaria y modo de control.
+
+2026-05-18 01:48 - Punto de parada y relojes en interfaz PC3
+- Se agrega reloj real visible en la barra superior de la interfaz web.
+- Se agrega reloj simulado visible, calculado con hora_inicio_simulada + tick_actual * minutos_simulados_por_tick.
+- Las flechas de las vias ahora tienen la punta ubicada en el borde exacto del circulo de la interseccion destino.
+- Los vehiculos en estado EN_COLA se fijan sobre el borde del circulo por el lado desde el que llegaron.
+- Si varios vehiculos esperan por la misma via, se distribuyen alrededor de ese borde para conservar legibilidad sin perder el lado de llegada.
+
+2026-05-18 01:55 - Refresco web sincronizado con tick
+- La interfaz web de PC3 deja de refrescar con intervalo fijo de 1 segundo.
+- El navegador calcula su intervalo de refresco con simulacion.tick_segundos_reales.
+- Con tick_segundos_reales = 0.03333, la vista intenta consultar el estado cada 33 ms.
+- Si una consulta anterior sigue en curso, la vista no acumula otra solicitud pendiente y espera al siguiente ciclo.
+
+2026-05-18 02:12 - Generacion por entrada y overhead final
+- Se cambia la semantica de min_nuevos_por_tick y max_nuevos_por_tick: ahora aplican por cada via de entrada activa en cada tick.
+- Con probabilidad_generacion_por_via = 1, cada entrada crea siempre una cantidad aleatoria entre el minimo y el maximo configurados.
+- Para ciudad 4x4 hay 8 entradas desde borde; con minimo 25 y maximo 30, el rango total esperado por tick queda entre 200 y 240 vehiculos normales.
+- PC3 conserva en su base de estado actual el timestamp real del primer snapshot de la corrida y el ultimo timestamp recibido.
+- La pantalla final de PC3 muestra tiempo real observado, tiempo teorico esperado y overhead/latencia frente a la configuracion.
+
+2026-05-18 02:30 - Panel global de simulacion en PC3
+- Se aumenta la legibilidad del inspector, la leyenda y el tooltip de hover.
+- En el recuadro SCORE se separa la linea de calculo nota * peso de la metrica evaluada por cada sensor.
+- Se agrega el boton Info de simulacion en el panel lateral de PC3.
+- El inspector puede mostrar hora simulada, tick rate, intersecciones, vias, vehiculos, ambulancias, semaforos por fase, vehiculos parados/circulando y conteos de vehiculos generados/despawneados en el ultimo tick.
+- La snapshot operativa transporta metricas agregadas del ultimo tick y PC3 las conserva en metadata de estado actual para consultarlas desde la interfaz.
+
+2026-05-18 02:45 - Separacion de archivos de la interfaz web
+- La interfaz web deja de estar embebida como un string HTML dentro de PC3/backend.
+- Se crea el directorio PC3/frontend para separar la visualizacion del backend operativo.
+- El servidor HTTP local queda en PC3/frontend/servidor.py.
+- El frontend queda dividido en PC3/frontend/static/index.html, styles.css y app.js.
+- El backend principal de PC3 importa iniciar_interfaz_web desde la nueva ubicacion, conservando el mismo comportamiento de arranque.
+
+2026-05-18 02:50 - Renombrado de carpeta frontend PC3
+- Se renombra PC3/interfaz_web a PC3/frontend para que el nombre refleje mejor que alli vive la capa visual.
+- Se actualiza el import del backend principal y la documentacion tecnica para usar la nueva ruta.
+
+2026-05-18 03:00 - Tooltip compacto en frontend PC3
+- Se reduce la informacion mostrada al pasar el cursor sobre vias, nodos y vehiculos.
+- El hover queda como resumen operativo con identificador y metricas clave.
+- El inspector lateral conserva el detalle completo para consulta profunda.
+
+2026-05-18 03:10 - Panel flotante de informacion de simulacion
+- El boton Info de simulacion se mueve del panel derecho al lado izquierdo del mapa.
+- Al hacer click, despliega un panel flotante independiente con las estadisticas globales de la simulacion.
+- Se elimina el bloque Estado del panel derecho porque esa informacion queda disponible en el nuevo panel flotante.
+- El panel derecho queda dedicado al inspector y la leyenda.
+
+2026-05-18 03:20 - Posicion visual de vehiculos al llegar a semaforo
+- Los vehiculos en circulacion se dibujan sobre el segmento visual recortado de la via, no sobre la linea centro-a-centro entre nodos.
+- Al llegar al destino visual de la arista, el vehiculo queda en el borde del circulo de la interseccion.
+- Si el estado cambia a EN_COLA, el punto de espera coincide con ese borde y se evita el salto hacia atras.
+
+2026-05-18 03:28 - Prevencion visual de entrada a interseccion en rojo
+- Los vehiculos detenidos se dibujan tangentes por fuera del circulo de la interseccion, no con el centro encima del borde.
+- Si un vehiculo en circulacion esta por tocar visualmente una interseccion cuyo semaforo no favorece su eje, el frontend lo pinta como detenido en rojo antes de que entre al nodo.
+- El umbral de parada se calcula con el radio visual del vehiculo y el largo de la arista dibujada.
+
+2026-05-18 03:35 - Grosor de vias y flechas en frontend PC3
+- Se duplica el grosor visual base de las vias del mapa.
+- El tamano de las flechas de direccion pasa a depender del grosor de cada arista para conservar proporciones.
+
+2026-05-18 04:05 - Ambulancias y control manual completos en PC3
+- Se agrega en la interfaz web de PC3 un boton flotante de ambulancia en la esquina inferior izquierda.
+- Ese panel permite escribir el sufijo del nodo BORDE-X-X, valida existencia localmente y envia la solicitud al backend por HTTP local; el backend la convierte en SolicitudAmbulancia y la despacha por ZeroMQ hacia PC0.
+- La ambulancia queda como vehiculo de tipo AMBULANCIA dentro del motor de PC0 y, mientras ocupe una via, esa via fuerza score=1.0 y estado ALTA.
+- PC1 detecta vias con ambulancia en la snapshot operativa y publica eventos de sensores con nota 1.0, para que PC2 tambien le otorgue prioridad total al eje correspondiente.
+- Se agrega en la interfaz web un boton flotante de control manual debajo de Info de simulacion.
+- Ese panel permite escribir el sufijo de una interseccion INT-XY y, si existe, muestra tres botones: verde horizontal, verde vertical y automatico.
+- Solo una interseccion puede permanecer en modo MANUAL a la vez; para cambiar de nodo, primero debe devolverse la interseccion controlada a AUTOMATICO.
+- El control manual deja de ser temporal por ticks: ahora queda vigente hasta nueva orden. Al volver a AUTOMATICO, PC2 restituye de inmediato el programa automatico vigente y vuelve a emitir comandos por score.
+- Se agregan validaciones y mensajes explicitos de "nodo no existe" o de bloqueo por otra interseccion en manual.
+
+2026-05-18 04:18 - Estabilidad de paneles flotantes en PC3
+- El panel de Control manual deja de abrirse encima de su propio boton; ahora se posiciona por debajo para que pueda cerrarse sin quedar tapado.
+- Los paneles flotantes de ambulancia y control manual dejan de re-renderizarse en cada tick mientras estan abiertos.
+- Con esto se evita perder el foco del cursor al hacer click sobre los campos de texto y ya se puede escribir de forma continua.
+- Se amplia tambien la zona invisible de hover de cada via para que la interaccion siga siendo comoda.
+
+2026-05-18 03:30 - Bloqueo fisico antes de entrar a interseccion
+- El motor actualiza la fase semaforica vigente al inicio del tick, antes de mover vehiculos.
+- Si un vehiculo alcanzaria una interseccion con fase desfavorable para el eje de su via, se detiene en la via actual y pasa a EN_COLA.
+- El vehiculo no entra ni cruza el nodo interseccion hasta que el semaforo tenga fase favorable.
+- La visualizacion recibe ya el estado EN_COLA y lo dibuja rojo sobre el borde de llegada.

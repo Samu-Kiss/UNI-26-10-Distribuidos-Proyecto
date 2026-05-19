@@ -5,7 +5,7 @@ from pathlib import Path
 import zmq
 
 from common.utilidades.configuracion import cargar_configuracion
-from common.utilidades.logs import log
+from common.utilidades.logs import hora_simulada_desde_config, log
 from common.utilidades.persistencia_sqlite import RepositorioSQLite
 
 
@@ -33,7 +33,11 @@ def main() -> None:
             datos = mensaje["datos"]
             if tipo == "snapshot_operativo":
                 repositorio.guardar_snapshot_operativo(datos)
-                log("PC2-ReplicaDB", "Snapshot operativo replicado.")
+                log(
+                    "PC2-ReplicaDB",
+                    "Snapshot operativo replicado.",
+                    hora_simulada=hora_simulada_desde_config(config, int(datos["tick_actual"])),
+                )
 
         if sincronizador in eventos:
             solicitud = sincronizador.recv_json()
@@ -41,7 +45,12 @@ def main() -> None:
             if tipo_solicitud == "solicitar_snapshot_operativo":
                 snapshot = repositorio.reconstruir_snapshot_operativo_actual()
                 sincronizador.send_json({"ok": snapshot is not None, "snapshot_operativo": snapshot})
-                log("PC2-ReplicaDB", "Solicitud de sincronizacion atendida.")
+                tick_actual = int(snapshot["tick_actual"]) if snapshot is not None else 0
+                log(
+                    "PC2-ReplicaDB",
+                    "Solicitud de sincronizacion atendida.",
+                    hora_simulada=hora_simulada_desde_config(config, tick_actual),
+                )
                 continue
             sincronizador.send_json({"ok": False, "error": "tipo_no_soportado"})
 

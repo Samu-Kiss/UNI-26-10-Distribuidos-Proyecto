@@ -20,9 +20,11 @@ class RepositorioSQLite:
 
     def inicializar_pc3(self) -> None:
         self._crear_tablas_estado_actual()
+        self._asegurar_migraciones_estado_actual()
 
     def inicializar_pc2(self) -> None:
         self._crear_tablas_estado_actual()
+        self._asegurar_migraciones_estado_actual()
 
     def inicializar_pc0(self) -> None:
         self._crear_tablas_historial_liviano()
@@ -49,6 +51,7 @@ class RepositorioSQLite:
             self._asegurar_columna("eventos_sensores", "tick_origen", "INTEGER NOT NULL DEFAULT 0")
         if "comandos_semaforo" in tablas:
             self._asegurar_columna("comandos_semaforo", "tick_origen", "INTEGER NOT NULL DEFAULT 0")
+            self._asegurar_columna("comandos_semaforo", "modo", "TEXT NOT NULL DEFAULT 'AUTOMATICO'")
         self.conexion.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_eventos_sensores_unicos
@@ -67,8 +70,35 @@ class RepositorioSQLite:
         )
         self.conexion.commit()
 
+    def _asegurar_migraciones_estado_actual(self) -> None:
+        tablas = self._obtener_tablas()
+        if "estado_intersecciones" not in tablas:
+            return
+        self._asegurar_columna("estado_intersecciones", "ciclo_semaforo_tick", "INTEGER NOT NULL DEFAULT 1")
+        self._asegurar_columna("estado_intersecciones", "ciclo_semaforo_total", "INTEGER NOT NULL DEFAULT 30")
+        self._asegurar_columna("estado_intersecciones", "fase_prioritaria", "TEXT NOT NULL DEFAULT 'HORIZONTAL'")
+        self._asegurar_columna(
+            "estado_intersecciones",
+            "duracion_fase_prioritaria",
+            "INTEGER NOT NULL DEFAULT 15",
+        )
+        self._asegurar_columna(
+            "estado_intersecciones",
+            "duracion_fase_secundaria",
+            "INTEGER NOT NULL DEFAULT 15",
+        )
+        self._asegurar_columna("estado_intersecciones", "modo_control", "TEXT NOT NULL DEFAULT 'AUTO'")
+
     def _crear_tablas_estado_actual(self) -> None:
         cursor = self.conexion.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS estado_meta (
+                clave TEXT PRIMARY KEY,
+                valor TEXT NOT NULL
+            )
+            """
+        )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS estado_intersecciones (
@@ -78,6 +108,12 @@ class RepositorioSQLite:
                 duracion_fase_activa INTEGER NOT NULL,
                 duracion_fase_alterna INTEGER NOT NULL,
                 ticks_restantes_fase INTEGER NOT NULL,
+                ciclo_semaforo_tick INTEGER NOT NULL DEFAULT 1,
+                ciclo_semaforo_total INTEGER NOT NULL DEFAULT 30,
+                fase_prioritaria TEXT NOT NULL DEFAULT 'HORIZONTAL',
+                duracion_fase_prioritaria INTEGER NOT NULL DEFAULT 15,
+                duracion_fase_secundaria INTEGER NOT NULL DEFAULT 15,
+                modo_control TEXT NOT NULL DEFAULT 'AUTO',
                 tick_actual INTEGER NOT NULL,
                 actualizado_en TEXT NOT NULL
             )
@@ -120,6 +156,38 @@ class RepositorioSQLite:
         )
         self.conexion.commit()
 
+    def _guardar_meta(self, clave: str, valor: str) -> None:
+        self.conexion.execute(
+            "INSERT OR REPLACE INTO estado_meta (clave, valor) VALUES (?, ?)",
+            (clave, valor),
+        )
+
+    def _leer_meta(self, clave: str) -> str | None:
+        fila = self.conexion.execute(
+            "SELECT valor FROM estado_meta WHERE clave = ?",
+            (clave,),
+        ).fetchone()
+        if fila is None:
+            return None
+        return str(fila[0])
+
+    def _actualizar_meta_operativa(self, timestamp: str, tick_actual: int) -> None:
+        ultimo_tick = self._leer_meta("ultimo_tick")
+        reinicia_corrida = ultimo_tick is None or tick_actual <= int(ultimo_tick)
+        if reinicia_corrida:
+            self._guardar_meta("inicio_real", timestamp)
+            self._guardar_meta("tick_inicio", str(tick_actual))
+        self._guardar_meta("ultimo_tick", str(tick_actual))
+        self._guardar_meta("ultimo_real", timestamp)
+
+    def _actualizar_metricas_tick(self, snapshot: dict[str, Any]) -> None:
+        metricas = snapshot.get("metricas_tick", {})
+        if not isinstance(metricas, dict):
+            metricas = {}
+        self._guardar_meta("ultimo_tick_creados", str(int(metricas.get("creados", 0))))
+        self._guardar_meta("ultimo_tick_eliminados", str(int(metricas.get("eliminados", 0))))
+        self._guardar_meta("ultimo_tick_movidos", str(int(metricas.get("movidos", 0))))
+
     def _crear_tablas_historial_liviano(self) -> None:
         cursor = self.conexion.cursor()
         cursor.execute(
@@ -146,6 +214,7 @@ class RepositorioSQLite:
                 tiempo_verde REAL NOT NULL,
                 tiempo_opuesto REAL NOT NULL,
                 tick_origen INTEGER NOT NULL DEFAULT 0,
+                modo TEXT NOT NULL DEFAULT 'AUTOMATICO',
                 razon TEXT NOT NULL
             )
             """
@@ -176,14 +245,18 @@ class RepositorioSQLite:
         timestamp = str(snapshot["timestamp"])
         tick_actual = int(snapshot["tick_actual"])
         cursor = self.conexion.cursor()
+        self._actualizar_meta_operativa(timestamp, tick_actual)
+        self._actualizar_metricas_tick(snapshot)
 
         for interseccion in snapshot["intersecciones"]:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO estado_intersecciones (
                     interseccion_id, fase_activa, fase_alterna, duracion_fase_activa,
-                    duracion_fase_alterna, ticks_restantes_fase, tick_actual, actualizado_en
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    duracion_fase_alterna, ticks_restantes_fase, ciclo_semaforo_tick,
+                    ciclo_semaforo_total, fase_prioritaria, duracion_fase_prioritaria,
+                    duracion_fase_secundaria, modo_control, tick_actual, actualizado_en
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     interseccion["interseccion_id"],
@@ -192,6 +265,12 @@ class RepositorioSQLite:
                     int(interseccion["duracion_fase_activa"]),
                     int(interseccion["duracion_fase_alterna"]),
                     int(interseccion["ticks_restantes_fase"]),
+                    int(interseccion.get("ciclo_semaforo_tick", 1)),
+                    int(interseccion.get("ciclo_semaforo_total", 30)),
+                    str(interseccion.get("fase_prioritaria", interseccion["fase_activa"])),
+                    int(interseccion.get("duracion_fase_prioritaria", interseccion["duracion_fase_activa"])),
+                    int(interseccion.get("duracion_fase_secundaria", interseccion["duracion_fase_alterna"])),
+                    str(interseccion.get("modo_control", "AUTO")),
                     tick_actual,
                     timestamp,
                 ),
@@ -271,8 +350,9 @@ class RepositorioSQLite:
         self.conexion.execute(
             """
             INSERT OR IGNORE INTO comandos_semaforo (
-                timestamp, interseccion, fase_ganadora, tiempo_verde, tiempo_opuesto, tick_origen, razon
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                timestamp, interseccion, fase_ganadora, tiempo_verde,
+                tiempo_opuesto, tick_origen, modo, razon
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 comando["timestamp"],
@@ -281,6 +361,7 @@ class RepositorioSQLite:
                 float(comando["tiempo_verde"]),
                 float(comando["tiempo_opuesto"]),
                 int(comando.get("tick_origen", 0)),
+                str(comando.get("modo", "AUTOMATICO")),
                 comando["razon"],
             ),
         )
@@ -323,7 +404,9 @@ class RepositorioSQLite:
                 """
                 SELECT
                     interseccion_id, fase_activa, fase_alterna, duracion_fase_activa,
-                    duracion_fase_alterna, ticks_restantes_fase
+                    duracion_fase_alterna, ticks_restantes_fase, ciclo_semaforo_tick,
+                    ciclo_semaforo_total, fase_prioritaria, duracion_fase_prioritaria,
+                    duracion_fase_secundaria, modo_control
                 FROM estado_intersecciones
                 ORDER BY interseccion_id
                 """
@@ -370,6 +453,11 @@ class RepositorioSQLite:
             "intersecciones": intersecciones,
             "vias": vias,
             "vehiculos": vehiculos,
+            "metricas_tick": {
+                "creados": int(self._leer_meta("ultimo_tick_creados") or 0),
+                "eliminados": int(self._leer_meta("ultimo_tick_eliminados") or 0),
+                "movidos": int(self._leer_meta("ultimo_tick_movidos") or 0),
+            },
         }
 
     def obtener_resumen_estado(self) -> dict[str, Any]:
@@ -378,6 +466,7 @@ class RepositorioSQLite:
         ).fetchone()
         tick_actual = int(tick_fila[0]) if tick_fila and tick_fila[0] is not None else 0
         actualizado_en = str(tick_fila[1]) if tick_fila and tick_fila[1] is not None else ""
+        inicio_real = self._leer_meta("inicio_real") or actualizado_en
         total_vehiculos = int(
             self.conexion.execute("SELECT COUNT(*) FROM estado_vehiculos").fetchone()[0]
         )
@@ -394,6 +483,7 @@ class RepositorioSQLite:
         return {
             "tick_actual": tick_actual,
             "actualizado_en": actualizado_en,
+            "inicio_real": inicio_real,
             "total_intersecciones": int(
                 self.conexion.execute("SELECT COUNT(*) FROM estado_intersecciones").fetchone()[0]
             ),
@@ -401,6 +491,56 @@ class RepositorioSQLite:
             "total_vehiculos": total_vehiculos,
             "total_ambulancias": total_ambulancias,
             "vias_congestion_alta": vias_congestion_alta,
+            "ultimo_tick_creados": int(self._leer_meta("ultimo_tick_creados") or 0),
+            "ultimo_tick_eliminados": int(self._leer_meta("ultimo_tick_eliminados") or 0),
+            "ultimo_tick_movidos": int(self._leer_meta("ultimo_tick_movidos") or 0),
+        }
+
+    def obtener_estado_operativo_completo(self) -> dict[str, Any]:
+        return {
+            "resumen": self.obtener_resumen_estado(),
+            "intersecciones": [
+                dict(fila)
+                for fila in self.conexion.execute(
+                    """
+                    SELECT
+                        interseccion_id, fase_activa, fase_alterna,
+                        duracion_fase_activa, duracion_fase_alterna,
+                        ticks_restantes_fase, ciclo_semaforo_tick,
+                        ciclo_semaforo_total, fase_prioritaria,
+                        duracion_fase_prioritaria, duracion_fase_secundaria,
+                        modo_control, tick_actual, actualizado_en
+                    FROM estado_intersecciones
+                    ORDER BY interseccion_id
+                    """
+                ).fetchall()
+            ],
+            "vias": [
+                dict(fila)
+                for fila in self.conexion.execute(
+                    """
+                    SELECT
+                        via_id, origen, destino, direccion, eje, longitud,
+                        vehiculos_en_circulacion, vehiculos_en_espera,
+                        velocidad_promedio, flujo_vehicular, score,
+                        estado_congestion, tick_actual, actualizado_en
+                    FROM estado_vias
+                    ORDER BY via_id
+                    """
+                ).fetchall()
+            ],
+            "vehiculos": [
+                dict(fila)
+                for fila in self.conexion.execute(
+                    """
+                    SELECT
+                        vehiculo_id, via_actual, posicion_en_via, velocidad,
+                        direccion_actual, estado, tipo, tick_actual, actualizado_en
+                    FROM estado_vehiculos
+                    ORDER BY vehiculo_id
+                    """
+                ).fetchall()
+            ],
         }
 
     def listar_eventos_sensores(self) -> list[dict[str, Any]]:
@@ -426,7 +566,7 @@ class RepositorioSQLite:
                 """
                 SELECT
                     timestamp, interseccion, fase_ganadora,
-                    tiempo_verde, tiempo_opuesto, tick_origen, razon
+                    tiempo_verde, tiempo_opuesto, tick_origen, modo, razon
                 FROM comandos_semaforo
                 ORDER BY id
                 """
@@ -439,7 +579,10 @@ class RepositorioSQLite:
             SELECT
                 interseccion_id, fase_activa, fase_alterna,
                 duracion_fase_activa, duracion_fase_alterna,
-                ticks_restantes_fase, tick_actual, actualizado_en
+                ticks_restantes_fase, ciclo_semaforo_tick,
+                ciclo_semaforo_total, fase_prioritaria,
+                duracion_fase_prioritaria, duracion_fase_secundaria,
+                modo_control, tick_actual, actualizado_en
             FROM estado_intersecciones
             WHERE interseccion_id = ?
             """,
@@ -464,6 +607,19 @@ class RepositorioSQLite:
             ).fetchall()
         ]
         return {"interseccion": dict(fila), "vias_entrada": vias}
+
+    def listar_intersecciones_en_modo_manual(self) -> list[str]:
+        return [
+            str(fila["interseccion_id"])
+            for fila in self.conexion.execute(
+                """
+                SELECT interseccion_id
+                FROM estado_intersecciones
+                WHERE modo_control = 'MANUAL'
+                ORDER BY interseccion_id
+                """
+            ).fetchall()
+        ]
 
     def obtener_estado_via(self, via_id: str) -> dict[str, Any] | None:
         fila = self.conexion.execute(

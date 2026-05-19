@@ -4,13 +4,26 @@
 \usepackage[spanish]{babel}
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage[table]{xcolor}
 \usepackage{hyperref}
 \usepackage{geometry}
 \usepackage{titlesec}
 \usepackage{fancyhdr}
 \usepackage{setspace}
 \usepackage{mdframed}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+% --- Arreglo de tablas (IMPORTANTE) ---
+\usepackage{ragged2e}
+\usepackage{seqsplit}
 
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+% Permitir que \texttt haga saltos de línea automáticamente
+\let\oldtexttt\texttt
+\renewcommand{\texttt}[1]{\oldtexttt{\seqsplit{#1}}}
 % Márgenes
 \geometry{
     a4paper,
@@ -142,17 +155,18 @@ Los siguientes parámetros deben poder ajustarse con archivos de configuración,
 
 El archivo principal de configuración es \texttt{config/system\_config.json}. Como el proyecto lo carga con \texttt{json.load}, no es posible usar comentarios nativos de JSON sin romper el parseo. Por esa razón se adoptó una convención explícita: incluir claves \texttt{\_comentario} o \texttt{\_comentarios} dentro del propio archivo para documentar el propósito de cada bloque y de cada parámetro sin afectar la ejecución.
 
-En la implementación actual, ese archivo agrupa sus parámetros en cinco bloques principales:
+En la implementación actual, ese archivo agrupa sus parámetros en seis bloques principales:
 
 \begin{itemize}
     \item \texttt{ciudad}: define la geometría de la cuadrícula, el rango de longitud de las vías y la semilla usada para construir un mapa reproducible.
     \item \texttt{sensores}: define qué tipos de sensores están activos y con qué frecuencia publica PC1 sus eventos derivados de \textit{la snapshot} (véase la sección 9.2).
-    \item \texttt{analitica}: define el umbral general de congestión y los pesos usados para combinar cámara, espira y GPS en el \textit{score} por vía (véase la sección 5.1).
-    \item \texttt{simulacion}: define la duración del tick real, el tiempo simulado por tick, la frecuencia de envío de las snapshots (véase la sección 9.2), la tasa de generación de vehículos, el máximo de vehículos por tick, el rango de velocidades iniciales y la velocidad por defecto de ambulancias.
+    \item \texttt{analitica}: define los pesos usados para combinar cámara, espira y GPS en el \textit{score} por vía (véase la sección 5.1).
+    \item \texttt{simulacion}: define la duración del tick real, el tiempo simulado por tick, la frecuencia de envío de las snapshots (véase la sección 9.2), la tasa de generación de vehículos, el mínimo y máximo de vehículos por vía de entrada activa en cada tick, el rango de velocidades iniciales y la velocidad por defecto de ambulancias.
+    \item \texttt{frontend}: define el host y el puerto inicial de la interfaz web local de PC3.
     \item \texttt{zmq}: define todos los endpoints de comunicación entre PC0, PC1, PC2 y PC3, incluyendo ingestas de bases de datos, broker, snapshots (véase la sección 9.2), backend principal, backend de respaldo, control manual y solicitudes de ambulancia.
 \end{itemize}
 
-Dentro del bloque \texttt{simulacion} también quedan parametrizadas de forma explícita \texttt{hora\_inicio\_simulada} y \texttt{hora\_fin\_simulada}, para que el reloj lógico del sistema no dependa solo de lo escrito en el informe sino de valores reales del archivo de configuración. En ese mismo bloque también se controla \texttt{intervalo\_snapshot\_ticks}, que define cada cuántos ticks PC0 propaga la foto operativa del mapa al resto del sistema.
+Dentro del bloque \texttt{simulacion} también quedan parametrizadas de forma explícita \texttt{hora\_inicio\_simulada}, \texttt{hora\_fin\_simulada} y \texttt{modo\_bucle\_infinito}, para que el reloj lógico del sistema no dependa solo de lo escrito en el informe sino de valores reales del archivo de configuración. Cuando \texttt{modo\_bucle\_infinito=true}, la simulación ignora ese rango, arranca a las \texttt{00:00} y, al pasar de \texttt{23:59}, vuelve a \texttt{00:00} sin detenerse. En ese mismo bloque también se controla \texttt{intervalo\_snapshot\_ticks}, que define cada cuántos ticks PC0 propaga la foto operativa del mapa al resto del sistema.
 
 Esta convención tiene dos ventajas importantes para el proyecto, el archivo sigue siendo ejecutable tal como está y, al mismo tiempo, queda autoexplicado para cualquier integrante del grupo (o para el mismo ingeniero Corredor) que necesite modificar parámetros sin tener que rastrear primero el código fuente.
 
@@ -200,6 +214,18 @@ En la implementación actual, el contenido principal de \texttt{common} puede re
     \item \texttt{common/utilidades/mensajeria\_zmq.py}: ayudas ZeroMQ de mejor esfuerzo.
 \end{itemize}
 
+\subsubsection{Formato de Logs Operativos}
+
+Se adopta un formato uniforme de logs para todos los procesos del sistema:
+
+\begin{center}
+\texttt{[real=HH:MM:SS] [sim=HH:MM] [NOMBRE\_PROCESO] mensaje}
+\end{center}
+
+La hora real corresponde al reloj del computador donde corre el proceso. La hora simulada se calcula a partir de \texttt{simulacion.hora\_inicio\_simulada}, \texttt{simulacion.minutos\_simulados\_por\_tick} y el \texttt{tick} asociado al evento, snapshot o comando. Cuando un proceso todavía no tiene contexto de simulación, el campo se imprime como \texttt{sim=--}.
+
+Esta decisión permite leer en una misma línea el momento real de ejecución y el instante lógico del mundo simulado, lo cual facilita depuración, sustentación y medición de latencias.
+
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Organización del Repositorio por Computador}
 
@@ -216,6 +242,7 @@ Además de \texttt{common}, el repositorio se estructura por responsabilidades d
     \item \texttt{PC2/backend\_respaldo}: backend de continuidad limitado a salud y estado presente.
     \item \texttt{PC3/main\_db}: persistencia principal y resincronización.
     \item \texttt{PC3/backend}: backend primario de consulta, ambulancias y control manual.
+    \item \texttt{PC3/frontend}: servidor HTTP local de la visualización de PC3 y archivos estáticos separados (\texttt{index.html}, \texttt{styles.css}, \texttt{app.js}).
 \end{itemize}
 
 Esta distribución busca que el repositorio exprese de manera visible la arquitectura lógica del sistema. En otras palabras, no solo separa archivos por conveniencia, sino también por responsabilidad, es decir, dónde vive la simulación, dónde se sensa, dónde se analiza, dónde se respalda el estado y dónde se expone el backend principal.
@@ -314,7 +341,7 @@ Esto implica que 1 vehículo en tránsito aporta 0.1, 5 vehículos aportan 0.5 y
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{GPS}
 
-El sensor GPS mide la velocidad promedio de los vehículos \textbf{en tránsito} en una arista y aporta una señal complementaria de \textbf{fluidez o lentitud} (\texttt{EVENTO\_DENSIDAD\_DE\_TRAFICO}, $D_t$). Como decisión del grupo, el GPS \textbf{no se usa como criterio único} para cambiar semáforos, sino como un componente ponderado dentro del \textit{score} total (véase la sección 5.1).
+El sensor GPS mide la velocidad promedio de los vehículos \textbf{en tránsito} en una arista y aporta una señal complementaria de \textbf{fluidez o lentitud} (\texttt{EVENTO\_DENSIDAD\_\allowbreak DE\_TRAFICO}, $D_t$). Como decisión del grupo, el GPS \textbf{no se usa como criterio único} para cambiar semáforos, sino como un componente ponderado dentro del \textit{score} total (véase la sección 5.1).
 
 Si no hay vehículos en tránsito, el promedio de velocidad es 0 y la nota del GPS también es 0. Si sí hay vehículos circulando, el promedio queda entre 10 y 50 porque cada vehículo mantiene una velocidad propia dentro de ese rango mientras se mueve por la vía.
 
@@ -390,6 +417,8 @@ Con estos valores, el \textit{score} de la vía se calcula como:
 
 Como los pesos suman $1$ y cada nota está en $[0,1]$, el resultado final también queda en el rango $[0,1]$. En esta distribución, la cámara pesa más porque la cola de vehículos es la señal más importante para decidir prioridad; la espira tiene un peso intermedio porque muestra presión de flujo; y el GPS pesa menos porque solo complementa la lectura de congestión. Estos valores pueden ajustarse más adelante si el grupo decide recalibrar el sistema.
 
+Para mantener coherencia entre analítica, persistencia y visualización, PC0 calcula y publica en cada snapshot operativo el mismo \textit{score} ponderado que usa PC2: cámara por vehículos en espera, espira por vehículos en circulación y GPS por velocidad promedio. El estado textual de la vía se deriva de ese \textit{score}: \texttt{BAJA} para valores menores a $0.40$, \texttt{NORMAL} entre $0.40$ y $0.70$, y \texttt{ALTA} por encima de $0.70$.
+
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Comparación entre Direcciones en Conflicto}
 
@@ -409,17 +438,19 @@ En la práctica, el servicio de analítica en PC2 revisa de manera continua los 
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Temporización Semafórica}
 
-La duración del verde se ajusta según la diferencia entre los \textit{scores} de las direcciones que están en conflicto. Se toma como base un ciclo total de \textbf{30 segundos}, porque en condiciones normales cada dirección recibe 15 segundos antes del cambio, tal como indica el enunciado. En esta simulación, esos 15 segundos son segundos reales de ejecución, pero equivalen a 15 minutos dentro del tiempo simulado de la ciudad. Se define:
+La duración del verde se ajusta según la diferencia entre los \textit{scores} de las direcciones que están en conflicto. La implementación usa un \textbf{contador cíclico fijo de 30 ticks} por intersección. Ese contador avanza de 1 a 30, vuelve a 1 y \textbf{no se reinicia} cuando llega una orden nueva desde PC2.
+
+La orden automática ya no significa ``cambie inmediatamente y empiece a contar otra vez''. En cambio, significa: con el contador actual, reserve esta cantidad de ticks del ciclo para el eje prioritario y el resto para el eje opuesto. Por eso, si una nueva lectura cambia los \textit{scores}, la partición del ciclo puede moverse en tiempo real sin borrar el avance del contador. Se define:
 
 $$\text{gap} = |\text{score}_1 - \text{score}_2| \quad \in [0, 1]$$
 
 \begin{itemize}
-    \item Si $\text{gap} = 0$: no existe diferencia de prioridad entre las dos direcciones comparadas; cada una recibe \textbf{15 segundos}, completando un ciclo total de 30 segundos.
-    \item Si $0 < \text{gap} < 1$: la dirección con mayor \textit{score} recibe una porción mayor del ciclo total de 30 segundos. Entre mayor sea el \textit{gap}, mayor será el tiempo en verde para esa dirección y menor para la dirección opuesta.
-    \item Si $\text{gap} = 1$: significa que una dirección tiene \textit{score} mínimo y la otra \textit{score} máximo. En la práctica, esto solo ocurre si una de las dos direcciones tiene \textit{score} $0$, es decir, no tiene carga vehicular antes del semáforo. En ese caso, la dirección ganadora recibe los \textbf{30 segundos completos} del ciclo.
+    \item Si $\text{gap} = 0$: no existe diferencia de prioridad entre los dos ejes comparados; cada uno recibe \textbf{15 ticks}, completando un ciclo total de 30 ticks.
+    \item Si $0 < \text{gap} < 1$: el eje con mayor \textit{score} recibe una porción mayor del ciclo total de 30 ticks. Entre mayor sea el \textit{gap}, mayor será su ventana de verde y menor la ventana del eje opuesto.
+    \item Si $\text{gap} = 1$: significa que un eje tiene prioridad máxima frente al otro. En ese caso, el eje ganador recibe los \textbf{30 ticks completos} del ciclo.
 \end{itemize}
 
-De forma general, si $\text{score}_{max}$ es el mayor de los dos \textit{scores} comparados, el tiempo de verde de la dirección prioritaria puede expresarse como:
+De forma general, si $\text{score}_{max}$ es el mayor de los dos \textit{scores} comparados, la ventana del eje prioritario puede expresarse como:
 
 \begin{align}
     T_{verde} = 15 + 15 \cdot \text{gap}
@@ -428,15 +459,19 @@ De forma general, si $\text{score}_{max}$ es el mayor de los dos \textit{scores}
 De este modo:
 
 \begin{itemize}
-    \item con $\text{gap} = 0$, $T_{verde} = 15$ segundos;
-    \item con $\text{gap} = 1$, $T_{verde} = 30$ segundos.
+    \item con $\text{gap} = 0$, $T_{verde} = 15$ ticks;
+    \item con $\text{gap} = 1$, $T_{verde} = 30$ ticks.
 \end{itemize}
 
-El tiempo restante del ciclo queda asignado a la dirección opuesta:
+El tiempo restante del ciclo queda asignado al eje opuesto:
 
 \begin{align}
     T_{opuesto} = 30 - T_{verde}
 \end{align}
+
+Adicionalmente, la implementación aplica una excepción operativa: si y solo si un eje tiene \texttt{score = 0.0} y el otro tiene \texttt{score > 0.0}, el eje con carga recibe los 30 ticks completos y el eje vacío recibe 0 ticks. Esta regla evita dejar esperando vehículos cuando el conflicto opuesto no tiene ningún carro.
+
+Operativamente, el eje opuesto ocupa el primer tramo del contador y el eje prioritario ocupa el tramo final. Por ejemplo, si \texttt{VERTICAL} gana con $T_{verde}=23$ y $T_{opuesto}=7$, entonces el contador 1--7 da verde a \texttt{HORIZONTAL} y el contador 8--30 da verde a \texttt{VERTICAL}. Si después llega otra orden, PC0 conserva el contador actual y recalcula qué eje corresponde a ese punto del ciclo. La discretización se hace a ticks enteros; por ejemplo, un valor teórico de 22.5 ticks se materializa como 23 ticks para el eje prioritario y 7 para el opuesto.
 
 Además de esta temporización, la implementación actual aplica dos reglas operativas importantes:
 
@@ -452,9 +487,10 @@ Desde PC3 el usuario puede forzar manualmente el estado de un semáforo:
 
 \begin{itemize}
     \item Selecciona una intersección y un eje a priorizar.
-    \item Indica por cuánto tiempo de simulación mantener el forzado.
-    \item Mientras dure, la lógica automática basada en \textit{score} queda suspendida en esa intersección.
-    \item Al finalizar, la intersección regresa al control automático.
+    \item Mientras ese control esté activo, la lógica automática basada en \textit{score} queda suspendida en esa intersección.
+    \item El forzado se mantiene hasta nueva orden; no expira por tiempo.
+    \item Solo una intersección puede permanecer en modo manual a la vez.
+    \item Para cambiar de intersección controlada, primero debe devolverse la anterior a modo automático.
 \end{itemize}
 
 El forzado se expresa en tiempo de simulación y no en tiempo real.
@@ -492,7 +528,7 @@ Cada vehículo es una entidad simulada con identificador único. Un vehículo so
 
 Los vehículos entran al sistema por un nodo de borde y recorren aristas dirigidas entre intersecciones. Al llegar a una intersección, el vehículo decide aleatoriamente entre seguir derecho o tomar la alternativa permitida. No puede moverse en contra del sentido de una vía. Sale del sistema cuando llega a un nodo de borde configurado como egreso.
 
-La presencia y el movimiento de los vehículos cambian el estado de las vías: cada vehículo aporta al conteo de vehículos en circulación dentro de su arista. Si el semáforo de su eje está en rojo y el vehículo llega al final de la arista, aporta al conteo de vehículos en espera. Estos valores alimentan las mediciones de los sensores simulados.
+La presencia y el movimiento de los vehículos cambian el estado de las vías: cada vehículo aporta al conteo de vehículos en circulación dentro de su arista. En cada tick, la fase semafórica vigente se actualiza antes de mover los vehículos. Si un carro alcanzaría una intersección cuyo semáforo no favorece el eje de su vía, el motor lo detiene en el borde de la intersección, lo marca como \texttt{EN\_COLA} y no le permite entrar ni cruzar el nodo. Solo cuando la fase pasa a ser favorable puede seleccionar la siguiente vía y continuar. Estos valores alimentan las mediciones de los sensores simulados.
 
 La velocidad de tránsito se asigna al vehículo cuando se instancia y permanece como atributo propio del vehículo. Cuando el carro logra pasar por una intersección con semáforo en verde y entra a una nueva vía, continúa recorriendo esa nueva arista con la misma velocidad que ya tenía asignada. Cuando un vehículo sale de la ciudad, se elimina del estado activo del motor de simulación.
 
@@ -510,9 +546,9 @@ Como complemento, el resumen de cada tick incluye la hora simulada correspondien
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Ambulancia}
 
-Desde PC3 el usuario puede solicitar manualmente una ambulancia en un nodo de borde. La ambulancia cuenta como un vehículo más, pero con una representación visual distinta y una velocidad constante configurable. A medida que avanza, el usuario puede intervenir manualmente los semáforos desde PC3 para abrirle paso. La ambulancia sale del sistema al llegar a un nodo de borde.
+Desde PC3 el usuario puede solicitar manualmente una ambulancia en un nodo de borde con \textit{spawn} válido. La ambulancia cuenta como un vehículo más, pero con una representación visual distinta, una velocidad constante configurable y prioridad total sobre la vía que ocupa. La ambulancia sale del sistema al llegar a un nodo de borde.
 
-Operativamente, la ambulancia \textbf{la solicita PC3 y la crea PC0}. El backend principal de PC3 construye la solicitud y la envía por ZeroMQ a PC0; PC0 recibe esa solicitud y la inyecta en el motor de simulación como un vehículo de tipo \texttt{AMBULANCIA}. En una futura visualización basta con conservar su tipo, su vía actual y su posición por tick para distinguirla del tráfico normal.
+Operativamente, la ambulancia \textbf{la solicita PC3 y la crea PC0}. El backend principal de PC3 construye la solicitud y la envía por ZeroMQ a PC0; PC0 recibe esa solicitud y la inyecta en el motor de simulación como un vehículo de tipo \texttt{AMBULANCIA}. Mientras la ambulancia ocupe una vía, esa vía fuerza \texttt{score = 1.0} en PC0 y PC1 publica notas de sensores \texttt{1.0} para esa misma vía, de modo que PC2 también le otorgue prioridad total al eje correspondiente.
 
 % ════════════════════════════════════════════════════════════════════════════
 % SECCIÓN 7
@@ -536,6 +572,12 @@ Operativamente, la ambulancia \textbf{la solicita PC3 y la crea PC0}. El backend
 \end{itemize}
 
 PC0 \textbf{no} forma parte del mecanismo principal de respaldo cuando ocurre una falla; su almacenamiento histórico es para análisis posterior, no para mantener la operación del sistema.
+
+\subsubsection{Generación de Vehículos Normales}
+
+La generación normal de vehículos se evalúa por cada vía de entrada desde borde. En cada tick, PC0 recorre esas vías de entrada y aplica \texttt{simulacion.probabilidad\_generacion\_por\_via}. Si la probabilidad activa la entrada, el motor crea en esa misma vía una cantidad aleatoria de vehículos entre \texttt{simulacion.min\_nuevos\_por\_tick} y \texttt{simulacion.max\_nuevos\_por\_tick}.
+
+Con la configuración actual, donde \texttt{probabilidad\_generacion\_por\_via = 1}, cada vía de entrada genera vehículos en todos los ticks. Si \texttt{min\_nuevos\_por\_tick = 25} y \texttt{max\_nuevos\_por\_tick = 30}, entonces cada entrada crea entre 25 y 30 vehículos por tick. En una ciudad de $4\times4$ hay 8 entradas desde borde, por lo que el rango total esperado por tick queda entre 200 y 240 vehículos normales.
 
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{PC1}
@@ -561,7 +603,7 @@ PC2 aloja la analítica y el control de semáforos. Sus responsabilidades son:
     \item Ejecutar órdenes de control sobre semáforos e imprimir por pantalla las acciones realizadas.
     \item Recibir y ejecutar indicaciones de control manual provenientes de PC3.
     \item Mantener la \textbf{réplica de la base de datos}, actualizada de forma asíncrona, para que el sistema pueda seguir operando si PC3 falla.
-    \item Exponer un backend de respaldo limitado a salud y consultas de estado actual, sin crear ambulancias ni aceptar control manual durante el failover.
+    \item Exponer un backend de respaldo limitado a salud y consultas de estado actual, sin crear ambulancias ni aceptar control manual durante el fallo.
 \end{itemize}
 
 % ────────────────────────────────────────────────────────────────────────────
@@ -574,8 +616,29 @@ PC3 aloja el monitoreo, la consulta y la persistencia principal. Sus responsabil
     \item Proveer monitoreo y consulta del estado actual mediante REQ/REP.
     \item Enviar indicaciones directas al servicio de analítica para forzar cambios semafóricos.
     \item Exponer el backend primario que el cliente consulta normalmente antes de considerar el respaldo de PC2.
-    \item Visualizar la ciudad como grafo sobre cuadrícula, con vías coloreadas según congestión e indicadores de fase activa (extensión del grupo de computadores).
-    \item Permitir al usuario solicitar ambulancias en nodos de borde.
+    \item Visualizar la ciudad como grafo sobre cuadrícula mediante una interfaz web local levantada junto con el backend principal.
+    \item Mantener separada la interfaz web de la lógica del backend: el servidor Python de la interfaz vive en \texttt{PC3/frontend/servidor.py}, mientras que HTML, CSS y JavaScript residen en \texttt{PC3/frontend/static/}.
+    \item Dibujar nodos de spawn/salida y vías sin texto fijo sobre el grafo; la información completa se muestra al pasar el cursor sobre nodos, vías o vehículos.
+    \item Colorear las vías según el \textit{score} de congestión: verde para carga baja, amarillo para carga moderada y rojo para carga alta.
+    \item Incluir una leyenda de fases semafóricas: azul para fase horizontal y morado para fase vertical.
+    \item Mostrar en el inspector de cada vía un recuadro \texttt{SCORE} con fórmula, pesos configurados, qué evalúa cada sensor, notas parciales de cámara/espira/GPS y contribución de cada sensor.
+    \item Aumentar la legibilidad del inspector, la leyenda y los tooltips; en el detalle del \texttt{SCORE}, separar en líneas distintas la contribución \texttt{nota * peso} y la métrica concreta evaluada por el sensor.
+    \item Incluir un botón \texttt{Info de simulacion} en el panel lateral. Al activarlo, el inspector muestra estadísticas globales del snapshot actual: hora simulada, tick rate, cantidad de intersecciones, vías, vehículos, ambulancias, semáforos por fase, vehículos parados/circulando y vehículos generados/despawneados en el último tick.
+    \item Mover \texttt{Info de simulacion} a un botón flotante sobre el lado izquierdo del mapa. El botón despliega un panel independiente con las estadísticas globales, por lo que el panel derecho ya no incluye el bloque resumido de \texttt{Estado}.
+    \item Añadir un botón flotante de \texttt{Control manual} debajo de \texttt{Info de simulacion}, con validación de intersección existente y tres acciones exclusivas: verde horizontal, verde vertical y automático.
+    \item Añadir un botón flotante de \texttt{Ambulancia} en la esquina inferior izquierda, con formulario para construir nodos \texttt{BORDE-X-X} válidos y enviar la solicitud al backend principal.
+    \item Mantener los paneles flotantes fuera del área de sus propios botones y evitar re-renderizarlos en cada tick mientras el usuario escribe, para no perder foco en los campos del formulario.
+    \item Reemplazar el mapa por una pantalla de cierre cuando la simulación alcance la hora final configurada, mostrando hora de inicio, hora de fin, tick final y hora real del último snapshot.
+    \item Mostrar en esa pantalla final el tiempo real observado, el tiempo teórico esperado por configuración y el overhead o diferencia entre ambos.
+    \item Mostrar en la barra superior tanto el reloj real de la máquina como el reloj lógico de simulación calculado desde \texttt{hora\_inicio\_simulada}, \texttt{tick\_actual} y \texttt{minutos\_simulados\_por\_tick}.
+    \item Refrescar la interfaz web con la misma cadencia configurada para el tick de PC0 (\texttt{simulacion.tick\_segundos\_reales}), evitando acumular solicitudes si el navegador aún está procesando el refresco anterior.
+    \item Recortar visualmente las aristas para que empiecen y terminen en el borde del nodo, no en su centro, y hacer que la punta de la flecha de dirección termine justo sobre el borde del círculo de la intersección destino.
+    \item Resaltar visualmente los vehículos en espera de semáforo (\texttt{EN\_COLA}) en color rojo, manteniendo los vehículos en circulación en negro.
+    \item Dibujar los vehículos en circulación sobre el mismo segmento visual recortado de la arista, de borde a borde, para que al llegar al semáforo queden ya en el punto donde esperarían si el estado cambia a \texttt{EN\_COLA}.
+    \item Dibujar los vehículos en cola fijos por fuera del borde del círculo de la intersección, tangentes al lado desde el que llegan; si hay varios esperando por la misma vía, se distribuyen alrededor de ese borde para evitar superposición directa.
+    \item Si el frontend detecta que un vehículo en circulación está a punto de tocar visualmente una intersección cuyo semáforo no favorece su eje, lo muestra ya como detenido en el borde, evitando que el círculo negro entre al nodo y luego salte hacia atrás.
+    \item Usar nodos de intersección, nodos de spawn/salida y vías con mayor tamaño visual para mejorar la lectura del mapa en tiempo real.
+    \item Permitir al usuario solicitar ambulancias en nodos de borde con \textit{spawn} válido.
 \end{itemize}
 
 % ════════════════════════════════════════════════════════════════════════════
@@ -624,11 +687,36 @@ Por esta razón, si se quiere una prueba completamente limpia y sin mezclar corr
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Reloj de Simulación}
 
-El sistema comparte un reloj global de simulación que representa un día de \textbf{12:00 a 18:00}. Por defecto, para efectos de la simulación, \textbf{1 segundo de tiempo real representa 1 minuto de tiempo simulado}. Esto implica que un cambio semafórico normal de 15 segundos en tiempo real equivale a 15 minutos dentro de la ciudad simulada.
+El sistema comparte un reloj global de simulación que representa un día lógico configurable. El ritmo real no está fijo en el código: se controla con \texttt{simulacion.tick\_segundos\_reales}, mientras que el avance lógico se controla con \texttt{simulacion.minutos\_simulados\_por\_tick}. Con la configuración actual de prueba acelerada, \texttt{tick\_segundos\_reales = 0.03333} y \texttt{minutos\_simulados\_por\_tick = 1}, por lo que cada 33 ms reales representan 1 minuto simulado.
 
 En la implementación actual, el reloj lógico se materializa en \textbf{PC0}. Cada tick del motor incrementa el tiempo simulado y esa referencia temporal se propaga al resto del sistema por medio de las snapshots operativas (véase la sección 9.2) y del \texttt{tick\_origen} en los eventos. Todos los eventos (sensores, vehículos, semáforos y persistencia) usan el tiempo de simulación, no el tiempo real.
 
-El rango horario queda también parametrizado en \texttt{config/system\_config.json} mediante \texttt{hora\_inicio\_simulada} y \texttt{hora\_fin\_simulada}. Adicionalmente, la cadencia de propagación del estado del mapa se controla con \texttt{intervalo\_snapshot\_ticks}. Por ahora, la hora final se usa como referencia visible del día simulado y para enriquecer logs, pero no detiene automáticamente la simulación.
+El rango horario queda también parametrizado en \texttt{config/system\_config.json} mediante \texttt{hora\_inicio\_simulada} y \texttt{hora\_fin\_simulada}. Adicionalmente, la cadencia de propagación del estado del mapa se controla con \texttt{intervalo\_snapshot\_ticks}. En la implementación actual, cuando \texttt{modo\_bucle\_infinito=false}, PC0 usa esa hora final para detener automáticamente el motor cuando el reloj lógico alcanza el cierre del día simulado. Antes de detenerse, PC0 envía el snapshot del tick final, registra el cierre del día y muestra un mensaje en arte ASCII indicando la finalización de la simulación.
+
+Si \texttt{modo\_bucle\_infinito=true}, la lógica cambia deliberadamente: PC0 ignora \texttt{hora\_inicio\_simulada} y \texttt{hora\_fin\_simulada}, fija el reloj lógico en un ciclo continuo \texttt{00:00 -> 23:59 -> 00:00}, no considera nunca la simulación como finalizada y, por tanto, tampoco dispara la pantalla final de cierre en la interfaz web de PC3.
+
+\subsection{Overhead de Ejecución Real}
+
+Al finalizar el día simulado, la interfaz web de PC3 contrasta el tiempo real observado contra el tiempo teórico esperado por configuración. El tiempo teórico se calcula como:
+
+\begin{align}
+T_{teorico} =
+\left\lceil
+\frac{\text{duracion\_simulada\_min}}
+{\text{minutos\_simulados\_por\_tick}}
+\right\rceil
+\cdot \text{tick\_segundos\_reales}
+\end{align}
+
+El tiempo real observado se mide con la diferencia entre el timestamp real del primer snapshot de la corrida y el timestamp real del snapshot final. PC3 conserva esta metadata en su base de estado actual y la muestra en la pantalla final junto con el overhead:
+
+\begin{align}
+overhead = T_{real\_observado} - T_{teorico}
+\end{align}
+
+Esta métrica captura la diferencia práctica producida por procesamiento, comunicación ZeroMQ, persistencia SQLite, renderizado/consulta web, planificación del sistema operativo y carga acumulada de la simulación.
+
+La snapshot operativa también incluye métricas agregadas del último tick (\texttt{creados}, \texttt{eliminados} y \texttt{movidos}). PC3 guarda esas métricas en la metadata de su base de estado actual para que la interfaz pueda mostrar, sin consultar el histórico completo, cuántos vehículos fueron generados y cuántos fueron despawneados en el último avance de simulación.
 
 % ════════════════════════════════════════════════════════════════════════════
 % SECCIÓN 9
@@ -678,8 +766,10 @@ Los endpoints ZeroMQ asociados a la propagación de estado también se definen p
 Cuando el usuario crea una ambulancia desde la interfaz de PC3:
 
 \begin{enumerate}
+    \item PC3 valida localmente que el nodo \texttt{BORDE-X-X} exista y tenga \textit{spawn} válido.
     \item PC3 envía la solicitud por ZeroMQ a PC0, indicando el nodo de borde donde debe aparecer la ambulancia.
     \item PC0 instancia la ambulancia como una entidad vehicular especial dentro de la simulación.
+    \item Mientras la ambulancia ocupa una vía, esa vía fuerza \texttt{score = 1.0}; PC1 y PC2 conservan esa prioridad al publicar y recalcular sensores/comandos.
     \item PC3 la visualiza con una representación diferenciada (por ejemplo, icono de sirena) respecto al tráfico normal.
 \end{enumerate}
 
@@ -692,12 +782,12 @@ Cuando el usuario fuerza un semáforo desde PC3:
 
 \begin{enumerate}
     \item PC3 envía la orden al servicio de analítica/control en PC2.
-    \item La orden indica qué intersección y qué eje priorizar, y por cuánto tiempo de simulación mantener el forzado.
-    \item PC2 ejecuta el forzado, suspendiendo temporalmente la lógica automática en esa intersección.
-    \item Al finalizar el período indicado, la intersección regresa automáticamente al control por \textit{score}.
+    \item La orden indica qué intersección y qué eje priorizar, o si debe volver a modo automático.
+    \item PC2 ejecuta el forzado, suspendiendo la lógica automática en esa intersección hasta nueva orden.
+    \item Solo una intersección puede permanecer en modo manual a la vez; para cambiar de nodo, primero debe liberarse la anterior.
 \end{enumerate}
 
-En la implementación actual, este forzado se realiza por ZeroMQ: el backend principal de PC3 emite la solicitud de control manual, PC2 la valida y genera un comando semafórico manual que envía inmediatamente a PC0, donde se refleja en el siguiente ciclo operativo de la simulación. Si PC3 no está disponible, el backend de respaldo de PC2 no acepta nuevos controles manuales.
+En la implementación actual, este forzado se realiza por ZeroMQ: el backend principal de PC3 emite la solicitud de control manual, PC2 la valida, verifica que no exista otra intersección retenida en manual y genera un comando semafórico manual que envía inmediatamente a PC0, donde se refleja en el siguiente ciclo operativo de la simulación. Cuando el usuario pulsa \texttt{Automatico}, PC2 libera la retención manual y restituye de inmediato el programa automático vigente para esa intersección. Si PC3 no está disponible, el backend de respaldo de PC2 no acepta nuevos controles manuales.
 
 
 
@@ -792,14 +882,14 @@ El sistema distingue dos roles de backend:
 
 La operación mínima de continuidad incluye también una consulta de \textbf{salud}. Esta consulta funciona como un \textit{ping} del backend y permite saber qué servidor atendió la solicitud. Si responde PC3, el cliente sigue en el camino normal; si PC3 no responde y la petición cae a PC2, la respuesta identifica explícitamente al respaldo como backend activo.
 
-El cliente de failover intenta primero hablar con PC3; si no recibe respuesta, reintenta automáticamente la misma solicitud contra PC2. Esta decisión hace que el respaldo mantenga continuidad de protocolo, es decir, que pueda seguir respondiendo dentro del mismo esquema de solicitudes sin obligar al cliente a cambiar de interfaz o de contrato.
+El cliente durante el fallo intenta primero hablar con PC3; si no recibe respuesta, reintenta automáticamente la misma solicitud contra PC2. Esta decisión hace que el respaldo mantenga continuidad de protocolo, es decir, que pueda seguir respondiendo dentro del mismo esquema de solicitudes sin obligar al cliente a cambiar de interfaz o de contrato.
 
 Sin embargo, compartir el mismo protocolo no significa compartir la misma autoridad operativa. El respaldo no ejecuta operaciones activas. Si recibe solicitudes como las siguientes:
 
 \noindent\texttt{crear\_ambulancia}\\
 \texttt{control\_manual}
 
-\noindent responde explícitamente que la operación no está disponible en modo respaldo. Ese rechazo es deliberado y forma parte del diseño, para evitar que la continuidad mínima de PC2 se convierta en una segunda capa completa de control de usuario. Aunque el cliente de failover podría reenviar esas solicitudes al respaldo, solo PC3 está autorizado para iniciarlas como operaciones activas de usuario.
+\noindent responde explícitamente que la operación no está disponible en modo respaldo. Ese rechazo es deliberado y forma parte del diseño, para evitar que la continuidad mínima de PC2 se convierta en una segunda capa completa de control de usuario. Aunque el cliente durante el fallo podría reenviar esas solicitudes al respaldo, solo PC3 está autorizado para iniciarlas como operaciones activas de usuario.
 
 % ────────────────────────────────────────────────────────────────────────────
 \subsection{Limitaciones Durante la Falla}
@@ -840,4 +930,720 @@ Métricas de comparación entre ambas versiones:
 
 Los escenarios de prueba varían el número de sensores y el tiempo entre generación de mediciones.
 
+% ════════════════════════════════════════════════════════════════════════════
+% SECCIÓN 13
+% ════════════════════════════════════════════════════════════════════════════
+\section{Diagramas de Diseño}
+
+Esta sección recopila los diagramas UML que modelan la estructura y el comportamiento del sistema distribuido de gestión inteligente de tráfico urbano. Cada diagrama ofrece una perspectiva complementaria del diseño.
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Diagrama de Clases}
+
+En la Figura~\ref{fig:diagrama-clases} se presenta el diagrama de clases, que muestra las principales entidades del sistema (modelos de la ciudad, mensajes de comunicación y utilidades compartidas) junto con sus atributos y relaciones.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{DiagramaClases.png}
+    \caption{Diagrama de clases del sistema.}
+    \label{fig:diagrama-clases}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Diagrama de Componentes}
+
+En la Figura~\ref{fig:diagrama-componentes} se presenta el diagrama de componentes, que describe los módulos lógicos de alto nivel del sistema y las interacciones principales entre ellos, sin hacer referencia directa al código fuente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{diagramaComponentes.png}
+    \caption{Diagrama de componentes del sistema.}
+    \label{fig:diagrama-componentes}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Diagrama de Despliegue}
+
+En la Figura~\ref{fig:diagrama-despliegue} se presenta el diagrama de despliegue, que ilustra la distribución física de los servicios en los cuatro computadores (PC0--PC3), los canales ZeroMQ que los conectan y las bases de datos asociadas.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{DiagramaDespliegue.png}
+    \caption{Diagrama de despliegue del sistema.}
+    \label{fig:diagrama-despliegue}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Diagrama de Secuencia}
+
+En la Figura~\ref{fig:diagrama-secuencia} se presenta el diagrama de secuencia, que detalla el flujo temporal de mensajes durante un ciclo completo de simulación: desde la generación de un tick en PC0, pasando por la emisión de eventos de sensores y el cálculo analítico, hasta la aplicación de comandos semafóricos.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{DiagramaSecuencia.png}
+    \caption{Diagrama de secuencia del sistema.}
+    \label{fig:diagrama-secuencia}
+\end{figure}
+
+% ════════════════════════════════════════════════════════════════════════════
+% SECCIÓN 14
+% ════════════════════════════════════════════════════════════════════════════
+\section{Protocolo de Pruebas}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Objetivo}
+
+El presente protocolo define las pruebas necesarias para verificar y validar el correcto funcionamiento del sistema distribuido de gestión inteligente de tráfico urbano, con énfasis en las pruebas de desempeño exigidas por el enunciado del proyecto. El documento cubre pruebas funcionales, de integración, de fallos, de seguridad y de rendimiento comparativo entre la versión base del broker y la versión mejorada con hilos.
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Alcance}
+
+El protocolo abarca la totalidad del sistema distribuido compuesto por cuatro computadores (PC0, PC1, PC2 y PC3), sus canales ZeroMQ, las tres bases de datos SQLite (histórica en PC0, réplica operativa en PC2 y principal en PC3), los tres tipos de sensores lógicos (cámara, espira inductiva y GPS), el servicio de analítica, el control de semáforos, el backend principal, el backend de respaldo y el mecanismo durante el fallo de PC3. Se incluyen los escenarios mínimos de rendimiento definidos en la Tabla~1 del enunciado.
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Supuestos}
+
+\begin{itemize}
+    \item Todas las pruebas se ejecutan sobre la misma configuración compartida definida en \texttt{config/system\_config.json}, salvo las variaciones explícitas del escenario de rendimiento.
+    \item Los endpoints ZeroMQ se configuran en \texttt{localhost} para pruebas locales y se reemplazan por direcciones IP reales cuando se ejecuta sobre tres o más máquinas físicas o virtuales.
+    \item Las bases de datos SQLite se limpian antes de cada ejecución de prueba mediante el script de limpieza incluido en el directorio \texttt{scripts}, para evitar contaminación entre corridas según lo indicado en la sección~8.4.
+    \item El orden de arranque respeta la secuencia documentada en la sección~10.2: PC3, PC2, PC1, PC0.
+    \item La semilla pseudoaleatoria del motor de simulación y de la generación de vías se fija en el archivo de configuración para garantizar reproducibilidad.
+    \item Se asume que el hardware de prueba permanece estable durante las mediciones y que no existen procesos externos que compitan significativamente por CPU o red.
+\end{itemize}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Marco de Pruebas por Modelos del Sistema}
+
+% ─── 13.4.1 ─────────────────────────────────────────────────────────────────
+\subsubsection{Modelo Arquitectónico}
+
+El modelo arquitectónico del sistema organiza cuatro nodos (PC0, PC1, PC2, PC3) con responsabilidades definidas: PC0 como dueño autoritativo del mapa, los vehículos y el reloj lógico; PC1 como nodo de sensado y brokering; PC2 como nodo de analítica, control semafórico y réplica operativa; PC3 como nodo de persistencia principal, backend primario y punto de interacción con el usuario (véase la sección~1).
+
+\textbf{Aplicación al proyecto:} las pruebas arquitectónicas verifican que cada nodo ejecuta exclusivamente las responsabilidades asignadas, que los canales ZeroMQ conectan los componentes según los endpoints definidos en la configuración (véase la sección~2.3), que la snapshot operativa fluye correctamente de PC0 a PC1 y que el estado actual se persiste tanto en PC3 como en PC2. Se valida que PC0 sea la única fuente de verdad para el estado del grafo, que PC1 no modifique el estado sino que lo observe, y que PC2 tome decisiones semafóricas sin duplicar la simulación.
+
+% ─── 13.4.2 ─────────────────────────────────────────────────────────────────
+\subsubsection{Modelo de Interacción}
+
+El modelo de interacción describe los patrones de comunicación: PUB/SUB para la publicación de eventos de sensores desde PC1 hacia PC2 vía el broker; PUSH/PULL para el envío de comandos semafóricos desde PC2 hacia PC0, para la persistencia en bases de datos y para las solicitudes de ambulancias; REQ/REP para las consultas del usuario desde el cliente hacia el backend principal de PC3 (y durante el fallo hacia PC2); y la snapshot operativa como contrato de estado compartido publicado por PC0 (véase las secciones~9.1 y~9.2).
+
+\textbf{Aplicación al proyecto:} las pruebas de interacción verifican que los eventos de sensores se publican con tópicos diferenciados por tipo de sensor y que el broker los reenvía correctamente, que los comandos semafóricos llegan a PC0 y se aplican en el siguiente ciclo de simulación, que las solicitudes REQ/REP del usuario reciben respuesta dentro de un tiempo acotado, que las solicitudes de control manual llegan a PC2 y suspenden la lógica automática durante el período indicado (véase la sección~5.5), y que las solicitudes de ambulancia viajan de PC3 a PC0 y se materializan como vehículos de tipo \texttt{AMBULANCIA} en la simulación (véase la sección~9.3).
+
+% ─── 13.4.3 ─────────────────────────────────────────────────────────────────
+\subsubsection{Modelo de Fallos}
+
+El modelo de fallos se centra en la caída de PC3 como escenario principal de falla. Si PC3 cae, el núcleo PC0-PC1-PC2 continúa operando y PC2 sostiene continuidad mínima con consulta de estado actual y salud, sin aceptar operaciones activas de usuario (véase las secciones~11.1 a~11.4). Cuando PC3 se reincorpora, solicita a PC2 el estado actual y resincroniza su base de datos.
+
+\textbf{Aplicación al proyecto:} las pruebas de fallos simulan la caída de PC3 durante la operación normal y verifican que: (a)~la simulación en PC0 no se detiene, (b)~los sensores en PC1 siguen publicando, (c)~la analítica en PC2 sigue emitiendo comandos, (d)~el cliente de fallo redirige automáticamente las consultas al backend de respaldo de PC2, (e)~las solicitudes de creación de ambulancia y de control manual son rechazadas explícitamente por el respaldo, y (f)~al reiniciar PC3 se resincroniza con el estado actual de PC2 y la operación vuelve al camino principal.
+
+% ─── 13.4.4 ─────────────────────────────────────────────────────────────────
+\subsubsection{Modelo de Seguridad}
+
+El modelo de seguridad se aplica desde la perspectiva de integridad y autoridad operativa. Solo PC0 puede crear y modificar el estado del mapa; solo PC3 puede iniciar operaciones activas de usuario; el backend de respaldo de PC2 rechaza deliberadamente operaciones que no le corresponden (véase la sección~11.3).
+
+\textbf{Aplicación al proyecto:} las pruebas de seguridad verifican que el backend de respaldo de PC2 rechace con un mensaje explícito las solicitudes de creación de ambulancia y de control manual, que ningún componente distinto a PC0 pueda inyectar vehículos en la simulación, y que la configuración de endpoints ZeroMQ sea coherente entre todos los nodos para evitar conexiones cruzadas o no autorizadas.
+
+
+
+\subsection{Matriz de Casos de Prueba}
+
+% ─── 13.7.1 ─────────────────────────────────────────────────────────────────
+\subsubsection{Pruebas Funcionales}
+
+\begin{footnotesize}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{|L{0.7cm}|L{2.3cm}|L{2.3cm}|L{2.3cm}|L{2.0cm}|L{2.0cm}|L{2.3cm}|}
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endhead
+
+PF-01 &
+Verificar generación de eventos por los tres tipos de sensores &
+PC0, PC1 y PC2 iniciados; cuadrícula $2\!\times\!2$; 3 tipos de sensor activos &
+1.~Iniciar PC0. 2.~Iniciar PC1. 3.~Observar logs de PC1. &
+Config.\ por defecto &
+Presencia de eventos \texttt{camara}, \texttt{espira} y \texttt{gps} con tick\_origen coherente &
+Se generan los 3 tipos de evento por cada arista instrumentada \\
+\hline
+
+PF-02 &
+Verificar que el broker reenvía todos los eventos a PC2 &
+PF-01 cumplida; PC2 iniciado &
+1.~Observar logs de PC2. 2.~Contrastar cantidad de eventos recibidos vs.\ publicados. &
+Config.\ por defecto &
+Razón eventos recibidos / enviados &
+Razón $\geq 0.99$ \\
+\hline
+
+PF-03 &
+Verificar cálculo correcto del \textit{score} por vía &
+PC0, PC1 y PC2 en operación &
+1.~Capturar notas parciales de un tick. 2.~Calcular manualmente el \textit{score} con los pesos configurados. &
+Notas del log; pesos de config. &
+$|\text{score}_{\text{esp}} - \text{score}_{\text{obs}}|$ &
+Diferencia $\leq 0.001$ \\
+\hline
+
+PF-04 &
+Verificar temporización semafórica según gap &
+PC2 en operación &
+1.~Identificar comando con gap $> 0$. 2.~Verificar $T_{\text{verde}} = 15 + 15 \cdot \text{gap}$ y $T_{\text{opuesto}} = 30 - T_{\text{verde}}$. &
+Comando capturado del log &
+Adherencia a la fórmula &
+Tiempos coinciden exactamente \\
+\hline
+
+PF-05 &
+Verificar deduplicación de comandos semafóricos &
+PC2 en operación; tráfico estable &
+1.~Ejecutar $\geq$10 ticks. 2.~Verificar ausencia de comandos consecutivos idénticos por intersección. &
+Logs de PC2 &
+Pares duplicados consecutivos &
+Ningún par duplicado \\
+\hline
+
+PF-06 &
+Verificar creación de ambulancia desde PC3 &
+Sistema completo en operación &
+1.~Enviar \texttt{crear\_\allowbreak ambulancia} con nodo de borde válido a PC3. 2.~Verificar log de PC0. &
+\texttt{nodo\_origen} válido &
+Registro de ambulancia en PC0 &
+Ambulancia aparece con tipo \texttt{AMBULANCIA} \\
+\hline
+
+PF-07 &
+Verificar control manual de semáforo &
+Sistema completo en operación &
+1.~Enviar \texttt{control\_\allowbreak manual} (INT-A1, VERTICAL). 2.~Observar suspensión de lógica automática. 3.~Enviar \texttt{AUTO}. &
+\texttt{INT-A1}, \texttt{VERTICAL}, \texttt{AUTO} &
+Log de aplicación y liberación &
+Forzado aplicado y liberado correctamente \\
+\hline
+
+PF-08 &
+Verificar consulta de estado de intersección &
+PC3 y BD actualizadas con $\geq 1$ snapshot &
+1.~Enviar \texttt{estado\_\allowbreak interseccion}. 2.~Verificar campos de respuesta. &
+Intersección válida del grafo &
+Completitud de campos &
+Fase activa, duración y tick coherentes \\
+\hline
+
+PF-09 &
+Verificar consulta de resumen de estado &
+PC3 actualizado &
+1.~Enviar \texttt{resumen\_estado}. 2.~Verificar estructura. &
+Ninguno adicional &
+Completitud de campos &
+Información de intersecciones, vías y vehículos presente \\
+\hline
+
+PF-10 &
+Verificar persistencia de snapshots en BD principal y réplica &
+$\geq$10 ticks de operación &
+1.~Consultar tablas de estado en PC3 y PC2. 2.~Comparar datos. &
+Ninguno adicional &
+Consistencia entre BD principal y réplica &
+Datos de estado actual consistentes \\
+\hline
+\end{longtable}
+\end{footnotesize}
+
+% ─── 13.7.2 ─────────────────────────────────────────────────────────────────
+\subsubsection{Pruebas de Integración}
+
+\begin{footnotesize}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{|L{0.7cm}|L{2.3cm}|L{2.3cm}|L{2.3cm}|L{2.0cm}|L{2.0cm}|L{2.3cm}|}
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endhead
+
+PI-01 &
+Flujo extremo a extremo: vehículo $\to$ sensor $\to$ analítica $\to$ comando $\to$ simulación &
+Sistema completo arrancado en orden &
+1.~Iniciar PC3, PC2, PC1, PC0. 2.~Esperar 5 ticks. 3.~Verificar cada eslabón de la cadena. &
+Config.\ por defecto &
+Presencia de cada eslabón &
+Flujo completo observable \\
+\hline
+
+PI-02 &
+Propagación de snapshot de PC0 a PC1 &
+PC0 y PC1 iniciados &
+1.~Verificar recepción de snapshots en PC1. 2.~Verificar coherencia de \texttt{tick\_origen} en eventos generados. &
+Config.\ por defecto; \texttt{intervalo\_snapshot\_ticks}: 1 &
+Coherencia de \texttt{tick\_origen} &
+Ticks de eventos coinciden con tick del snapshot \\
+\hline
+
+PI-03 &
+Propagación consistente del reloj lógico &
+Sistema completo en operación &
+1.~Capturar \texttt{tick\_actual} en snapshots, \texttt{tick\_origen} en eventos y en comandos. 2.~Verificar ordenamiento causal. &
+Logs de PC0, PC1 y PC2 &
+Monotonía creciente de ticks &
+Ticks estrictamente no decrecientes por componente \\
+\hline
+
+PI-04 &
+Escritura asíncrona en las tres BD &
+$\geq$20 ticks de operación &
+1.~Consultar conteos de registros en BD de PC0, PC2 y PC3. 2.~Verificar presencia. &
+Ninguno adicional &
+Registros en las 3 BD &
+PC0 acumula eventos y comandos; PC2 y PC3 reflejan estado actual \\
+\hline
+\end{longtable}
+\end{footnotesize}
+
+% ─── 13.7.3 ─────────────────────────────────────────────────────────────────
+\subsubsection{Pruebas de Fallos}
+
+\begin{footnotesize}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{|L{0.7cm}|L{2.3cm}|L{2.3cm}|L{2.3cm}|L{2.0cm}|L{2.0cm}|L{2.3cm}|}
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endhead
+
+PFL-01 &
+Continuidad operativa ante caída de PC3 &
+Sistema estable $\geq$10 ticks &
+1.~Detener PC3 abruptamente. 2.~Esperar 10 ticks. 3.~Verificar operación de PC0, PC1 y PC2. &
+Ninguno adicional &
+Continuidad de logs &
+Los tres nodos continúan sin interrupción \\
+\hline
+
+PFL-02 &
+Fallo de PC3 hacia backend de respaldo &
+PC3 detenido; PC2 con backend respaldo activo &
+1.~Enviar \texttt{salud} desde cliente. 2.~Verificar respuesta del backend. &
+\texttt{tipo}: \texttt{salud} &
+Valor de \texttt{backend\_\allowbreak atendio} &
+Respuesta proviene del respaldo \\
+\hline
+
+PFL-03 &
+Rechazo de operaciones activas en respaldo &
+PC3 detenido &
+1.~Enviar \texttt{crear\_\allowbreak ambulancia} durante el fallo. 2.~Enviar \texttt{control\_\allowbreak manual}. 3.~Verificar rechazo. &
+Solicitudes de operación activa &
+Campo \texttt{error} en respuesta &
+Ambas devuelven \texttt{operacion\_no\_\allowbreak disponible\_en\_\allowbreak respaldo} \\
+\hline
+
+PFL-04 &
+Resincronización de PC3 al reincorporarse &
+PC3 detenido durante 15 ticks y luego reiniciado &
+1.~Detener PC3. 2.~Reiniciar PC3. 3.~Verificar resincronización. 4.~Verificar retorno al camino principal. &
+Ninguno adicional &
+\texttt{backend\_\allowbreak atendio} tras resincronización &
+Consultas posteriores retornan a PC3 principal \\
+\hline
+
+PFL-05 &
+Analítica no interrumpida durante caída de PC3 &
+PC3 detenido &
+1.~Verificar que los comandos semafóricos se siguen emitiendo desde PC2 hacia PC0. &
+Logs de PC2 y PC0 &
+Continuidad de comandos &
+Comandos llegan sin interrupción a PC0 \\
+\hline
+\end{longtable}
+\end{footnotesize}
+
+% ─── 13.7.4 ─────────────────────────────────────────────────────────────────
+\subsubsection{Pruebas de Seguridad e Integridad}
+
+\begin{footnotesize}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{|L{0.7cm}|L{2.3cm}|L{2.3cm}|L{2.3cm}|L{2.0cm}|L{2.0cm}|L{2.3cm}|}
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endhead
+
+PS-01 &
+Solo PC0 inyecta vehículos &
+Sistema completo en operación &
+1.~Verificar logs de creación de vehículos. 2.~Confirmar que solo PC0 genera registros de creación. &
+Logs de todos los nodos &
+Fuente de creación &
+Todos los registros provienen de PC0 \\
+\hline
+
+PS-02 &
+Coherencia de endpoints ZeroMQ entre nodos &
+Archivos de config.\ cargados por cada nodo &
+1.~Comparar endpoints de \texttt{connect} con endpoints de \texttt{bind} del nodo destino. &
+\texttt{config/\allowbreak system\_\allowbreak config.json} &
+\seqsplit{Correspondencia connect/bind} &
+Todos los pares son coherentes \\
+\hline
+
+PS-03 &
+Respaldo no permite operaciones activas &
+PC2 con backend respaldo activo; PC3 detenido &
+1.~Enviar \texttt{crear\_\allowbreak ambulancia} y \texttt{control\_\allowbreak manual} directamente a PC2. 2.~Verificar rechazo. &
+Solicitudes de operación activa &
+Presencia de error de rechazo &
+Ambas solicitudes rechazadas \\
+\hline
+\end{longtable}
+\end{footnotesize}
+
+% ─── 13.7.5 ─────────────────────────────────────────────────────────────────
+\subsubsection{Pruebas de Desempeño}
+
+\begin{footnotesize}
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{|L{0.7cm}|L{2.3cm}|L{2.3cm}|L{2.3cm}|L{2.0cm}|L{2.0cm}|L{2.3cm}|}
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Propósito} & \textbf{Pre condiciones} & \textbf{Pasos} & \textbf{Datos} & \textbf{Métrica} & \textbf{Criterio de éxito} \\
+\hline
+\endhead
+
+PD-01 &
+Rendimiento BD en 2~min --- Esc.~1, broker base &
+Sistema limpio; broker base; 1 sensor/tipo; eventos cada 10\,s &
+1.~Iniciar sistema. 2.~Ejecutar 120\,s. 3.~Contar registros en BD histórica de PC0. &
+Intervalo: 10\,s; 1 sensor/tipo &
+Registros / 120\,s &
+Valor positivo y proporcional a aristas instrumentadas \\
+\hline
+
+PD-02 &
+Rendimiento BD en 2~min --- Esc.~1, broker multihilos &
+Igual a PD-01 con broker multihilos &
+Ídem PD-01 &
+Ídem PD-01 &
+Registros / 120\,s &
+Comparar con PD-01 \\
+\hline
+
+PD-03 &
+Rendimiento BD en 2~min --- Esc.~2, broker base &
+Broker base; 2 sensores/tipo; eventos cada 2.5\,s &
+Ítem PD-01 con configuración de Esc.~2 &
+Intervalo: 2.5\,s; 2 sensores/tipo &
+Registros / 120\,s &
+Valor documentado \\
+\hline
+
+PD-04 &
+Rendimiento BD en 2~min --- Esc.~2, broker multihilos &
+Igual a PD-03 con broker multihilos &
+Ítem PD-03 &
+Ítem PD-03 &
+Registros / 120\,s &
+Comparar con PD-03 \\
+\hline
+
+PD-05 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~1, broker base &
+Sistema estable; broker base; Esc.~1 &
+1.~Registrar $t_0$ al enviar \texttt{control\_\allowbreak manual}. 2.~Registrar $t_1$ cuando PC0 aplica el comando. 3.~Calcular $\Delta t = t_1 - t_0$. &
+\texttt{control\_\allowbreak manual} con intersección válida &
+$\Delta t$ (ms) &
+$\Delta t < 2000$\,ms en local \\
+\hline
+
+PD-06 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~1, broker multihilos &
+Igual a PD-05 con broker multihilos &
+Ídem PD-05 &
+Ídem PD-05 &
+$\Delta t$ (ms) &
+Comparar con PD-05 \\
+\hline
+
+PD-07 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~2, broker base &
+Sistema estable; broker base; Esc.~2 &
+Ídem PD-05 &
+Esc.~2 &
+$\Delta t$ (ms) &
+Valor documentado \\
+\hline
+
+PD-08 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~2, broker multihilos &
+Igual a PD-07 con broker multihilos &
+Ídem PD-07 &
+Ídem PD-07 &
+$\Delta t$ (ms) &
+Comparar con PD-07 \\
+\hline
+
+PD-09 &
+Latencia de procesamiento analítico por tick &
+PC2 en operación &
+1.~Registrar timestamp de recepción del último evento del tick. 2.~Registrar timestamp de emisión del comando. 3.~Calcular diferencia. &
+Logs de PC2 &
+$\Delta t$ recepción--emisión &
+Métrica complementaria documentada \\
+\hline
+
+PD-10 &
+Latencia de propagación de snapshot PC0$\to$PC1 &
+PC0 y PC1 en operación &
+1.~Registrar timestamp de emisión en PC0. 2.~Registrar timestamp de recepción en PC1. 3.~Calcular diferencia. &
+Logs de PC0 y PC1 &
+$\Delta t$ de propagación &
+Métrica complementaria documentada \\
+\hline
+
+PD-11 &
+Rendimiento BD en 2~min --- Esc.~3, broker base &
+Sistema limpio; broker base; 3 sensores/tipo; eventos cada 1\,s &
+Ídem PD-01 con configuración de Esc.~3 &
+Intervalo: 1\,s; 3 sensores/tipo &
+Registros / 120\,s &
+Valor documentado \\
+\hline
+
+PD-12 &
+Rendimiento BD en 2~min --- Esc.~3, broker multihilos &
+Igual a PD-11 con broker multihilos &
+Ídem PD-11 &
+Ídem PD-11 &
+Registros / 120\,s &
+Comparar con PD-11 \\
+\hline
+
+PD-13 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~3, broker base &
+Sistema estable; broker base; Esc.~3 &
+Ídem PD-05 &
+Esc.~3 &
+$\Delta t$ (ms) &
+Valor documentado \\
+\hline
+
+PD-14 &
+Latencia usuario $\to$ cambio semáforo --- Esc.~3, broker multihilos &
+Igual a PD-13 con broker multihilos &
+Ídem PD-13 &
+Ídem PD-13 &
+$\Delta t$ (ms) &
+Comparar con PD-13 \\
+\hline
+\end{longtable}
+\end{footnotesize}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Procedimiento de Ejecución y Repetición Experimental}
+
+% ─── 13.8.1 ─────────────────────────────────────────────────────────────────
+\subsubsection{Preparación del entorno}
+
+\begin{enumerate}
+    \item Verificar que todas las dependencias del archivo \texttt{requirements.txt} estén instaladas en cada máquina participante.
+    \item Verificar que el archivo \texttt{config/system\_config.json} es idéntico en todos los nodos.
+    \item Ejecutar el script de limpieza de bases de datos (\texttt{scripts/limpiar\_bases.sh}).
+    \item Verificar que no existen procesos residuales de ejecuciones anteriores.
+\end{enumerate}
+
+% ─── 13.8.2 ─────────────────────────────────────────────────────────────────
+\subsubsection{Ejecución de una corrida}
+
+\begin{enumerate}
+    \item Arrancar los nodos en el orden documentado: PC3, PC2, PC1, PC0.
+    \item Esperar al menos 2 minutos reales para las pruebas de rendimiento, o el número de ticks necesario para las pruebas funcionales.
+    \item Registrar el inicio y el fin de la ventana de medición.
+    \item Al finalizar la ventana, detener los nodos en orden inverso: PC0, PC1, PC2, PC3.
+\end{enumerate}
+
+% ─── 13.8.3 ─────────────────────────────────────────────────────────────────
+\subsubsection{Repetición experimental}
+
+Cada prueba de desempeño se repite un mínimo de \textbf{5 veces} con la misma configuración y la misma semilla de simulación. Se reportan:
+
+\begin{itemize}
+    \item Media aritmética de la métrica.
+    \item Desviación estándar.
+    \item Valor mínimo y máximo.
+    \item Mediana.
+\end{itemize}
+
+La primera corrida de cada serie se descarta como corrida de calentamiento para mitigar efectos de caché y estabilización de conexiones ZeroMQ. En consecuencia, se ejecutan 6 corridas y se analizan las 5 últimas.
+
+% ─── 13.8.4 ─────────────────────────────────────────────────────────────────
+\subsubsection{Configuración de escenarios}
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4pt}
+
+\begin{tabular}{|L{4.5cm}|c|c|c|}
+\hline
+\textbf{Parámetro} & \textbf{Escenario 1} & \textbf{Escenario 2} & \textbf{Escenario 3} \\
+\hline
+Sensores por tipo por arista & 1 & 2 & 3 \\
+Intervalo de publicación & 10\,s & 2.5\,s & 1\,s \\
+Tipo de broker & Base / Multihilos & Base / Multihilos & Base / Multihilos \\
+Duración de ventana de medición & 120\,s & 120\,s & 120\,s \\
+Cuadrícula & Según configuración & Según configuración & Según configuración \\
+Semilla de simulación & Fija & Fija & Fija \\
+\hline
+\end{tabular}
+\end{center}
+La combinación genera 6 tratamientos experimentales: (Escenario~1, Base), (Escenario~1, Multihilos), (Escenario~2, Base), (Escenario~2, Multihilos), (Escenario~3, Base), (Escenario~3, Multihilos).
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Tratamiento de Fallas: Caída de PC3 y Continuidad con Réplica PC2}
+
+% ─── 13.9.1 ─────────────────────────────────────────────────────────────────
+\subsubsection{Protocolo de prueba de caída}
+
+\begin{enumerate}
+    \item El sistema se ejecuta en estado estable durante al menos 20 ticks.
+    \item Se detiene abruptamente el proceso de PC3.
+    \item Se verifica en los logs de PC0, PC1 y PC2 que no hay interrupciones.
+    \item Se envían consultas desde el cliente durante un fallo y se verifica que las respuestas provienen del backend de respaldo.
+    \item Se intentan operaciones activas (crear ambulancia, control manual) y se verifica su rechazo.
+    \item Se reinicia PC3.
+    \item Se verifica la resincronización consultando la base de datos de PC3 y comparándola con el estado actual de PC2.
+    \item Se envían nuevas consultas y se verifica que el backend principal de PC3 vuelve a atender.
+\end{enumerate}
+
+% ─── 13.9.2 ─────────────────────────────────────────────────────────────────
+\subsubsection{Criterios de éxito}
+
+\begin{itemize}
+    \item La simulación no se detiene en ningún momento.
+    \item El fallo de PC3 es transparente y automático.
+    \item Las operaciones activas son rechazadas por el respaldo con mensajes explícitos.
+    \item Tras la resincronización, PC3 atiende nuevamente con datos consistentes.
+\end{itemize}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Riesgos a la Validez de Resultados}
+
+% ─── 13.10.1 ────────────────────────────────────────────────────────────────
+\subsubsection{Amenazas a la validez interna}
+
+\begin{itemize}
+    \item \textbf{Carga del sistema operativo:} procesos no controlados en las máquinas de prueba pueden introducir variabilidad en las mediciones de latencia y rendimiento. Se mitiga ejecutando las pruebas en un entorno limpio con carga mínima.
+    \item \textbf{Sincronización de relojes:} si las pruebas se ejecutan en máquinas distintas, las diferencias de reloj pueden distorsionar las mediciones de latencia extremo a extremo. Se mitiga con NTP o, preferiblemente, ejecutando mediciones de latencia en la misma máquina.
+    \item \textbf{Efecto de calentamiento:} las primeras corridas pueden mostrar latencias mayores por inicialización de conexiones ZeroMQ y caché de SQLite. Se mitiga descartando la primera corrida de cada serie.
+    \item \textbf{Acumulación en bases de datos:} si las bases no se limpian entre corridas, el rendimiento de las consultas SQL puede degradarse. Se mitiga con limpieza obligatoria entre corridas.
+\end{itemize}
+
+% ─── 13.10.2 ────────────────────────────────────────────────────────────────
+\subsubsection{Amenazas a la validez externa}
+
+\begin{itemize}
+    \item \textbf{Escala reducida de la cuadrícula:} las pruebas con cuadrículas pequeñas (por ejemplo, $2\!\times\!2$) pueden no reflejar el comportamiento del sistema en cuadrículas mayores. Se recomienda documentar los resultados junto con el tamaño de la cuadrícula utilizada y, si es posible, repetir con una cuadrícula de mayor tamaño.
+    \item \textbf{Red local vs.\ red real:} las pruebas en \texttt{localhost} eliminan la latencia de red. Los resultados no son extrapolables directamente a un despliegue en red real sin ajustar las expectativas.
+    \item \textbf{Número limitado de repeticiones:} con 5 corridas efectivas la potencia estadística es baja. Se recomienda aumentar a 10 corridas si el tiempo lo permite.
+\end{itemize}
+
+% ─── 13.10.3 ────────────────────────────────────────────────────────────────
+\subsubsection{Amenazas a la validez de constructo}
+
+\begin{itemize}
+    \item \textbf{rendimiento como proxy de capacidad:} la cantidad de registros en BD en 2 minutos depende no solo del broker sino también de la velocidad de escritura de SQLite. Se recomienda diferenciar ambos factores si es posible.
+    \item \textbf{Latencia extremo a extremo como métrica compuesta:} la latencia medida incluye transmisión ZeroMQ, procesamiento analítico y aplicación del comando, y no permite aislar cuellos de botella sin instrumentación adicional. Se mitiga con las métricas complementarias PD-09 y PD-10.
+\end{itemize}
+
+% ────────────────────────────────────────────────────────────────────────────
+\subsection{Resultados Esperados y Formato de Reporte}
+
+Los resultados de las pruebas de desempeño se presentarán en:
+
+\begin{itemize}
+    \item \textbf{Tablas comparativas} con los 6 tratamientos (3 escenarios $\times$ 2 versiones de broker), mostrando media, desviación estándar, mínimo, máximo y mediana para cada métrica.
+    \item \textbf{Gráficos de barras o de caja} de rendimiento y latencia por tratamiento.
+    \item \textbf{Análisis comparativo} que responda la pregunta del enunciado: ¿qué diseño es más escalable? La justificación se basará en las tendencias observadas al pasar del escenario~1 al escenario~2 y al escenario~3, y en la diferencia relativa entre broker base y broker multihilos.
+    \item \textbf{Especificaciones de hardware y software} de las máquinas utilizadas (procesador, RAM, sistema operativo, versión de Python, versión de ZeroMQ).
+\end{itemize}
+
+\subsection{Medidas de rendimiento}
+
+\begin{footnotesize}
+\sloppy
+\renewcommand{\arraystretch}{1.35}
+\setlength{\tabcolsep}{3pt}
+
+\begin{longtable}{|L{2.6cm}|L{3.6cm}|L{3.6cm}|L{3.6cm}|}
+\hline
+\textbf{Escenario} & \textbf{Qué significa} & \textbf{Diseño solicitado en el proyecto} & \textbf{Diseño multihilos} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{Escenario} & \textbf{Qué significa} & \textbf{Diseño solicitado en el proyecto} & \textbf{Diseño multihilos} \\
+\hline
+\endhead
+
+\textbf{Sensores cada 10 s. Spawn rate normal} &
+Pocos eventos por sensor y tráfico normal. Ejemplo: los sensores reportan lentamente y la simulación genera vehículos a la tasa usual. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} desempeño estable y baja latencia. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} comportamiento similar o levemente mejor. \\
+\hline
+
+\textbf{Sensores cada 2.5 s. Spawn rate normal} &
+Más eventos de sensores, pero con tráfico normal. Ejemplo: los carros aparecen al ritmo usual, pero los sensores informan más seguido. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mayor carga sobre el broker y aumento moderado de latencia. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mejor manejo del aumento de eventos. \\
+\hline
+
+\textbf{Sensores cada 1 s. Spawn rate normal} &
+Alta frecuencia de publicación de sensores con tráfico normal. Ejemplo: los sensores reportan casi continuamente. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mayor presión sobre el broker y mayor latencia. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} menor degradación que la versión base. \\
+\hline
+
+\textbf{Sensores cada 10 s. Spawn rate alto} &
+Poca frecuencia de sensores, pero muchos vehículos en simulación. Ejemplo: aparecen más carros de lo normal, aunque los sensores reportan lentamente. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} desempeño aceptable con más presión indirecta por tráfico. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} comportamiento más estable que la versión base. \\
+\hline
+
+\textbf{Sensores cada 2.5 s. Spawn rate alto} &
+Frecuencia media de sensores y tráfico alto. Ejemplo: muchos carros y sensores reportando con bastante frecuencia. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} carga exigente y latencia visible. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mejor tolerancia a carga concurrente. \\
+\hline
+
+\textbf{Sensores cada 1 s. Spawn rate alto} &
+Máxima exigencia del experimento. Ejemplo: muchos carros y sensores enviando datos todo el tiempo. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mayor probabilidad de congestión del broker y alta latencia. &
+\textbf{Se mide:} eventos en BD en 2 min; tiempo de cambio del semáforo. \textbf{Esperado:} mejor escalabilidad relativa bajo máxima carga. \\
+\hline
+
+\end{longtable}
+\end{footnotesize}
 \end{document}

@@ -50,6 +50,13 @@ class Interseccion:
     duracion_fase_activa: int = 15
     duracion_fase_alterna: int = 15
     ticks_restantes_fase: int = 15
+    ciclo_semaforo_tick: int = 1
+    ciclo_semaforo_total: int = 30
+    fase_prioritaria: str = "HORIZONTAL"
+    duracion_fase_prioritaria: int = 15
+    duracion_fase_secundaria: int = 15
+    modo_control: str = "AUTO"
+    manual_ticks_restantes: int = 0
 
 
 @dataclass(slots=True)
@@ -109,12 +116,16 @@ class CiudadMapa:
         for fila in range(filas):
             for columna in range(columnas):
                 identificador = construir_id_interseccion(fila, columna)
+                fase_inicial = "HORIZONTAL" if (fila + columna) % 2 == 0 else "VERTICAL"
+                fase_alterna = "VERTICAL" if fase_inicial == "HORIZONTAL" else "HORIZONTAL"
                 resultado[identificador] = Interseccion(
                     id_interseccion=identificador,
                     fila=fila,
                     columna=columna,
-                    fase_activa="HORIZONTAL" if (fila + columna) % 2 == 0 else "VERTICAL",
-                    fase_alterna="VERTICAL" if (fila + columna) % 2 == 0 else "HORIZONTAL",
+                    fase_activa=fase_inicial,
+                    fase_alterna=fase_alterna,
+                    ciclo_semaforo_tick=16,
+                    fase_prioritaria=fase_inicial,
                 )
         return resultado
 
@@ -273,12 +284,68 @@ class CiudadMapa:
         tiempo_opuesto: float,
     ) -> None:
         interseccion = self.intersecciones[interseccion_id]
-        fase_alterna = "VERTICAL" if fase_ganadora == "HORIZONTAL" else "HORIZONTAL"
+        total = interseccion.ciclo_semaforo_total
+        duracion_prioritaria = self._normalizar_ticks_ciclo(tiempo_verde, total)
+        duracion_secundaria = total - duracion_prioritaria
+
+        interseccion.modo_control = "AUTO"
+        interseccion.manual_ticks_restantes = 0
+        interseccion.fase_prioritaria = fase_ganadora
+        interseccion.duracion_fase_prioritaria = duracion_prioritaria
+        interseccion.duracion_fase_secundaria = duracion_secundaria
+        self.actualizar_fase_por_ciclo(interseccion)
+
+    def forzar_programacion_semaforo(
+        self,
+        interseccion_id: str,
+        fase_ganadora: str,
+        duracion_ticks: float,
+    ) -> None:
+        interseccion = self.intersecciones[interseccion_id]
+        duracion = -1 if float(duracion_ticks) < 0 else max(1, int(round(duracion_ticks)))
+        interseccion.modo_control = "MANUAL"
+        interseccion.manual_ticks_restantes = duracion
         interseccion.fase_activa = fase_ganadora
-        interseccion.fase_alterna = fase_alterna
-        interseccion.duracion_fase_activa = max(1, int(round(tiempo_verde)))
-        interseccion.duracion_fase_alterna = max(1, int(round(tiempo_opuesto)))
-        interseccion.ticks_restantes_fase = interseccion.duracion_fase_activa
+        interseccion.fase_alterna = self.fase_opuesta(fase_ganadora)
+        interseccion.duracion_fase_activa = duracion
+        interseccion.duracion_fase_alterna = 0
+        interseccion.ticks_restantes_fase = duracion
+
+    @staticmethod
+    def fase_opuesta(fase: str) -> str:
+        return "VERTICAL" if fase == "HORIZONTAL" else "HORIZONTAL"
+
+    @staticmethod
+    def _normalizar_ticks_ciclo(valor: float, total: int) -> int:
+        return min(max(int(float(valor) + 0.5), 0), total)
+
+    def actualizar_fase_por_ciclo(self, interseccion: Interseccion) -> None:
+        total = max(1, int(interseccion.ciclo_semaforo_total))
+        contador = ((int(interseccion.ciclo_semaforo_tick) - 1) % total) + 1
+        interseccion.ciclo_semaforo_total = total
+        interseccion.ciclo_semaforo_tick = contador
+
+        fase_prioritaria = interseccion.fase_prioritaria
+        fase_secundaria = self.fase_opuesta(fase_prioritaria)
+        duracion_prioritaria = self._normalizar_ticks_ciclo(interseccion.duracion_fase_prioritaria, total)
+        duracion_secundaria = total - duracion_prioritaria
+
+        interseccion.duracion_fase_prioritaria = duracion_prioritaria
+        interseccion.duracion_fase_secundaria = duracion_secundaria
+
+        if duracion_secundaria > 0 and contador <= duracion_secundaria:
+            interseccion.fase_activa = fase_secundaria
+            interseccion.fase_alterna = fase_prioritaria
+            interseccion.duracion_fase_activa = duracion_secundaria
+            interseccion.duracion_fase_alterna = duracion_prioritaria
+            interseccion.ticks_restantes_fase = duracion_secundaria - contador + 1
+            return
+
+        interseccion.fase_activa = fase_prioritaria
+        interseccion.fase_alterna = fase_secundaria
+        interseccion.duracion_fase_activa = duracion_prioritaria
+        interseccion.duracion_fase_alterna = duracion_secundaria
+        interseccion.ticks_restantes_fase = total - contador + 1
 
     def resumir_interseccion(self, interseccion: str) -> dict[str, object]:
         vias_entrada = self.obtener_vias_de_entrada(interseccion)
