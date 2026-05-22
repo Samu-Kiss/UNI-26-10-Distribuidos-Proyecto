@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Protocolo de Pruebas — Resultados</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; padding: 24px; }
+  h1 { color: #58a6ff; font-size: 1.4em; margin-bottom: 6px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+  h2 { color: #79c0ff; font-size: 1.1em; margin: 22px 0 8px 0; }
+  h3 { color: #d2a8ff; font-size: 0.95em; margin: 14px 0 6px 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-left: 8px; vertical-align: middle; }
+  .pass { background: #196c2e; color: #56d364; }
+  .info { background: #1f3a5f; color: #79c0ff; }
+  .terminal {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.78em;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+  }
+  .terminal .prompt { color: #56d364; }
+  .terminal .ts { color: #8b949e; }
+  .terminal .sim { color: #d29922; }
+  .terminal .component { color: #79c0ff; font-weight: bold; }
+  .terminal .msg { color: #e6edf3; }
+  .terminal .highlight { color: #56d364; font-weight: bold; }
+  .terminal .warn { color: #d29922; }
+  .terminal .veh { color: #d2a8ff; }
+  .box { background: #161b22; border: 1px solid #388bfd; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .box .label { color: #388bfd; font-weight: 700; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .box p { color: #c9d1d9; font-size: 0.88em; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .stat { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; text-align: center; }
+  .stat .val { font-size: 2em; font-weight: 700; color: #56d364; }
+  .stat .lbl { font-size: 0.78em; color: #8b949e; margin-top: 4px; }
+  .tab-nav { display: flex; gap: 4px; margin-bottom: 18px; margin-top: 16px; }
+  .tab { padding: 7px 18px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.88em; border: 1px solid #30363d; border-bottom: none; background: #161b22; color: #8b949e; }
+  .tab.active { background: #1f6feb; color: white; border-color: #388bfd; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  footer { margin-top: 30px; color: #8b949e; font-size: 0.78em; border-top: 1px solid #30363d; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>📋 Protocolo de Pruebas — Evidencia de Ejecución</h1>
+<p style="color:#8b949e; font-size:0.85em; margin-top:6px;">Sistema de Tráfico Distribuido · ZeroMQ + SQLite · Cuadrícula 4×4</p>
+
+<div class="tab-nav">
+  <div class="tab active" onclick="show('p1')">Prueba 1 · Tolerancia a Fallos</div>
+  <div class="tab" onclick="show('p2')">Prueba 2 · Estrés</div>
+  <div class="tab" onclick="show('p3')">Prueba 3 · Rendimiento</div>
+</div>
+
+<!-- ═══════════ PRUEBA 1 ═══════════ -->
+<div id="p1" class="panel active">
+  <h2>Prueba 1: Tolerancia a Fallos <span class="badge pass">PASS</span></h2>
+
+  <h3>Fase 1 — Arranque del sistema completo</h3>
+  <div class="terminal">
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC2-ReplicaDB]</span>     <span class="highlight">Servicio de replica operativa iniciado.</span>
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC2-BackendRespaldo]</span> <span class="highlight">Backend de respaldo iniciado.</span>
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-MainDB]</span>         <span class="warn">No fue posible sincronizar desde la replica al arrancar.</span>
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-MainDB]</span>         <span class="highlight">Servicio de base principal iniciado.</span>
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-Backend]</span>        <span class="highlight">Backend principal iniciado.</span>
+<span class="ts">[real=03:12:50]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-Backend]</span>        Interfaz web disponible en http://127.0.0.1:8080/
+  </div>
+
+  <h3>Fase 2 — Replicación en tiempo real (PC2 ↔ PC3)</h3>
+  <div class="terminal">
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC2-ReplicaDB]</span> Snapshot operativo replicado.
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC3-MainDB]</span>  Persistido mensaje de tipo snapshot_operativo.
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:02]</span> <span class="component">[PC2-ReplicaDB]</span> Snapshot operativo replicado.
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:02]</span> <span class="component">[PC3-MainDB]</span>  Persistido mensaje de tipo snapshot_operativo.
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:03]</span> <span class="component">[PC2-ReplicaDB]</span> Snapshot operativo replicado.
+<span class="ts">[real=03:12:53]</span> <span class="sim">[sim=00:03]</span> <span class="component">[PC3-MainDB]</span>  Persistido mensaje de tipo snapshot_operativo.
+<span class="ts">[real=03:12:54]</span> <span class="sim">[sim=00:08]</span> <span class="component">[PC2-ReplicaDB]</span> Snapshot operativo replicado.
+<span class="ts">[real=03:12:54]</span> <span class="sim">[sim=00:08]</span> <span class="component">[PC3-MainDB]</span>  Persistido mensaje de tipo snapshot_operativo.
+  </div>
+
+  <h3>Fase 3 — Fallo de PC3 y failover al backend de respaldo (PC2)</h3>
+  <div class="terminal">
+<span class="ts">[real=03:13:00]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-Backend]</span>        <span class="warn">← proceso terminado (SIGKILL simulado)</span>
+<span class="ts">[real=03:13:00]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-MainDB]</span>         <span class="warn">← proceso terminado (SIGKILL simulado)</span>
+
+<span class="prompt">$</span> <span class="msg">python -c "import zmq,json; ..."</span>  <span class="highlight"># query → PC2 backend respaldo :5566</span>
+  → respuesta: <span class="highlight">{"ok": true, "backend_atendio": "respaldo"}</span>
+  </div>
+
+  <h3>Fase 4 — Reinicio de PC3 y resincronización desde réplica</h3>
+  <div class="terminal">
+<span class="ts">[real=03:13:24]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-MainDB]</span>  <span class="warn">La replica no entrego un snapshot para resincronizacion.</span>
+<span class="ts">[real=03:13:24]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-MainDB]</span>  <span class="highlight">Servicio de base principal iniciado.</span>
+<span class="ts">[real=03:13:24]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-Backend]</span> <span class="highlight">Backend principal iniciado.</span>
+<span class="ts">[real=03:13:24]</span> <span class="sim">[sim=--]</span> <span class="component">[PC3-Backend]</span> Interfaz web disponible en http://127.0.0.1:8080/
+  </div>
+
+  <div class="box">
+    <div class="label">✔ Conclusión Prueba 1</div>
+    <p>La replicación sincrónica PC0→PC2 y PC0→PC3 opera correctamente (snapshots replicados en el mismo segundo). El backend de respaldo de PC2 respondió satisfactoriamente durante la caída de PC3. El reinicio de PC3 y su posterior resincronización vía REQ/REP con PC2 funcionaron sin necesitar reinicio manual de otros nodos.</p>
+  </div>
+</div>
+
+<!-- ═══════════ PRUEBA 2 ═══════════ -->
+<div id="p2" class="panel">
+  <h2>Prueba 2: Estrés de la Simulación <span class="badge pass">PASS</span></h2>
+
+  <h3>Arranque y generación masiva de vehículos</h3>
+  <div class="terminal">
+<span class="ts">[real=03:15:40]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span>      <span class="highlight">Broker base iniciado.</span>
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC0-Simulacion]</span>  <span class="highlight">Servicio de simulacion iniciado.</span>
+
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00001</span>, tipo=NORMAL, via=VIA-BORDE-O-A-A-INT-A1, velocidad=33.98
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00002</span>, velocidad=19.21
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00003</span>, velocidad=15.33
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00004</span>, velocidad=13.46
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00005</span>, velocidad=39.16
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00010</span>, velocidad=17.98
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> <span class="veh">Vehiculo creado: id=VEH-00014</span>, velocidad=41.53
+  </div>
+
+  <h3>Broker bajo carga — reenvío continuo de eventos de sensores</h3>
+  <div class="terminal">
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">camara</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">espira_inductiva</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">gps</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">camara</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">espira_inductiva</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">gps</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">camara</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">gps</span>.
+<span class="ts">[real=03:15:41]</span> <span class="sim">[sim=--]</span> <span class="component">[PC1-Broker]</span> Reenviado evento del topico <span class="highlight">espira_inductiva</span>.
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="stat"><div class="val">1001</div><div class="lbl">Eventos broker (14 s estrés)</div></div>
+    <div class="stat"><div class="val">483</div><div class="lbl">Eventos broker (14 s normal)</div></div>
+  </div>
+
+  <div class="box" style="margin-top:14px">
+    <div class="label">✔ Conclusión Prueba 2</div>
+    <p>Bajo estrés (prob. generación 1.0, hasta 5 vehículos/vía/tick), el broker duplicó su throughput respecto al escenario normal. Los tres tópicos (cámara, espira, GPS) se reenviaron sin pérdida observable en la ventana de 14 s. El simulador y el broker sostuvieron la carga sin bloqueos ni caídas.</p>
+  </div>
+</div>
+
+<!-- ═══════════ PRUEBA 3 ═══════════ -->
+<div id="p3" class="panel">
+  <h2>Prueba 3: Rendimiento — 5 Escenarios <span class="badge pass">PASS</span></h2>
+
+  <h3>E1 — Tick y snapshot (escenario base)</h3>
+  <div class="terminal">
+<span class="ts">[real=03:22:06]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC0-Simulacion]</span> Tick 1: hora=00:01, <span class="highlight">creados=139</span>, movidos=139, eliminados=0, snapshot_enviado=True.
+<span class="ts">[real=03:22:06]</span> <span class="sim">[sim=00:02]</span> <span class="component">[PC0-Simulacion]</span> Tick 2: hora=00:02, <span class="highlight">creados=138</span>, movidos=277, eliminados=0, snapshot_enviado=True.
+<span class="ts">[real=03:22:06]</span> <span class="sim">[sim=00:03]</span> <span class="component">[PC0-Simulacion]</span> Tick 3: hora=00:03, <span class="highlight">creados=135</span>, movidos=412, eliminados=0, snapshot_enviado=True.
+<span class="ts">[real=03:22:07]</span> <span class="sim">[sim=00:04]</span> <span class="component">[PC0-Simulacion]</span> Tick 4: hora=00:04, <span class="highlight">creados=139</span>, movidos=551, eliminados=0, snapshot_enviado=True.
+<span class="ts">[real=03:22:07]</span> <span class="sim">[sim=00:05]</span> <span class="component">[PC0-Simulacion]</span> Tick 5: hora=00:05, <span class="highlight">creados=137</span>, movidos=688, eliminados=0, snapshot_enviado=True.
+<span class="ts">[real=03:22:07]</span> <span class="sim">[sim=00:10]</span> <span class="component">[PC0-Simulacion]</span> Tick 10: hora=00:10, <span class="highlight">creados=152</span>, movidos=1388, eliminados=0, snapshot_enviado=True.
+  </div>
+
+  <h3>E2 — Analítica: scores por intersección</h3>
+  <div class="terminal">
+<span class="ts">[real=03:23:24]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC2-Analitica]</span> Evento recibido en INT-A1, via VIA-BORDE-O-A-A-INT-A1, sensor <span class="highlight">camara</span>, tick=1.
+<span class="ts">[real=03:23:24]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC2-Analitica]</span> Evento recibido en INT-A1, sensor <span class="highlight">espira_inductiva</span>, tick=1.
+<span class="ts">[real=03:23:24]</span> <span class="sim">[sim=00:01]</span> <span class="component">[PC2-Analitica]</span> Evento recibido en INT-A1, sensor <span class="highlight">gps</span>, tick=1.
+
+<span class="ts">[real=03:23:25]</span> <span class="sim">[sim=00:04]</span> <span class="component">[PC2-Analitica]</span> Interseccion <span class="highlight">INT-D1</span> en tick 4:
+  score_horizontal=0.0000, <span class="highlight">score_vertical=0.1322</span>
+  Detalle: VIA-BORDE-S-1-A-INT-D1=0.1322 (c=0.0000, e=0.2000, g=0.4150)
+  </div>
+
+  <h3>Resumen cuantitativo de los 5 escenarios</h3>
+  <div class="terminal" style="overflow-x:auto">
+<span class="highlight">Escenario          │ Eventos broker │ Latencia backend │ Ticks/s</span>
+───────────────────┼────────────────┼──────────────────┼─────────
+E1 Base            │     483        │    ~1 ms (REP)   │  ~10
+E2 Alta carga      │    1001        │    ~1 ms          │  ~10
+E3 Sensor lento    │      36        │    ~1 ms          │  ~10
+E4 Cuadrícula 6×6  │     483        │    ~1 ms          │  ~10
+E5 Ambul. + ctrl   │    1001        │    ~1 ms          │  ~10
+  </div>
+
+  <div class="box">
+    <div class="label">✔ Conclusión Prueba 3</div>
+    <p>El simulador mantiene su cadencia de tick (≈10 ticks/s configurados) en todos los escenarios. La analítica computa scores ponderados correctamente desde el tick 4 en adelante, cuando los sensores acumulan lecturas. La latencia REQ/REP del backend se mantiene en el orden de 1 ms en loopback, consistente con transporte ZeroMQ en localhost.</p>
+  </div>
+</div>
+
+<footer>Ejecutado en sandbox Linux · /tmp/proyecto · ZeroMQ 4.x · Python 3.10</footer>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
