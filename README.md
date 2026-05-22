@@ -2,6 +2,10 @@
 
 Sistema distribuido para simular trafico urbano, generar eventos de sensores, calcular prioridad semaforica y exponer una interfaz web operativa con tolerancia a fallas sobre ZeroMQ.
 
+[Link al video](https://www.youtube.com/watch?v=30Cp6jj9Mqo)
+
+[Link al doc](https://github.com/Samu-Kiss/UNI-26-10-Distribuidos-Proyecto/blob/main/docs%2FDocumentosLatex%2FProtocoloDePruebas%2FProtocolo%20De%20Pruebas.pdf)
+
 ## Componentes
 
 - `PC0`: simulacion autoritativa del mapa, vehiculos, ambulancias y base historica.
