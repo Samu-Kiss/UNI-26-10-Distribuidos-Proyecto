@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Semaphore Management | Presentacion</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07090d;
+      --panel: #10151d;
+      --panel-2: #151b24;
+      --ink: #eef3f7;
+      --muted: #9aa8b5;
+      --line: #2b3542;
+      --cyan: #37d6c8;
+      --green: #74d680;
+      --amber: #e8b75d;
+      --red: #ee6b69;
+      --blue: #7aa7ff;
+      --violet: #b694ff;
+      --shadow: 0 28px 90px rgba(0, 0, 0, .35);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(55, 214, 200, .07) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(122, 167, 255, .05) 1px, transparent 1px),
+        radial-gradient(circle at 68% 20%, rgba(116, 214, 128, .10), transparent 30%),
+        var(--bg);
+      background-size: 36px 36px, 36px 36px, auto, auto;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(7, 9, 13, .25), rgba(7, 9, 13, .88));
+      pointer-events: none;
+    }
+
+    .deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      isolation: isolate;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 22px;
+      padding: 48px 64px 34px;
+      opacity: 0;
+      transform: translateX(28px) scale(.985);
+      pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      left: 64px;
+      right: 64px;
+      bottom: 74px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--line), transparent);
+      opacity: .8;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 42px;
+    }
+
+    .kicker {
+      margin: 0;
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .section-tag::before {
+      content: "";
+      width: 34px;
+      height: 2px;
+      background: var(--amber);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      max-width: 980px;
+      font-size: clamp(54px, 7vw, 104px);
+      line-height: .92;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      max-width: 1040px;
+      font-size: clamp(36px, 5vw, 72px);
+      line-height: .98;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 900px;
+      color: #c5d0da;
+      font-size: clamp(21px, 2.2vw, 32px);
+      line-height: 1.28;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .mono {
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: .92em;
+    }
+
+    .content {
+      display: grid;
+      align-content: center;
+      gap: 26px;
+      min-height: 0;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .8fr);
+      gap: 32px;
+      align-items: center;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .four-col {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .stress-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .panel {
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .pad { padding: 24px; }
+
+    .metric {
+      min-height: 128px;
+      padding: 22px;
+      border-top: 3px solid var(--cyan);
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: clamp(32px, 4vw, 52px);
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .metric.green { border-top-color: var(--green); }
+    .metric.amber { border-top-color: var(--amber); }
+    .metric.blue { border-top-color: var(--blue); }
+    .metric.red { border-top-color: var(--red); }
+
+    .list {
+      display: grid;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      position: relative;
+      padding-left: 26px;
+      color: #d7e0e8;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .56em;
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--cyan);
+      transform: rotate(45deg);
+    }
+
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      aspect-ratio: 1;
+      padding: 18px;
+    }
+
+    .node {
+      position: relative;
+      display: grid;
+      place-items: center;
+      border: 1px solid #344254;
+      background: #0d131b;
+      color: #dce7ee;
+      font-weight: 800;
+      border-radius: 4px;
+    }
+
+    .node::before,
+    .node::after {
+      content: "";
+      position: absolute;
+      background: #293747;
+    }
+
+    .node::before {
+      width: 24px;
+      height: 2px;
+      right: -18px;
+      top: 50%;
+    }
+
+    .node::after {
+      width: 2px;
+      height: 24px;
+      bottom: -18px;
+      left: 50%;
+    }
+
+    .node:nth-child(4n)::before,
+    .node:nth-last-child(-n + 4)::after { display: none; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .pc {
+      position: relative;
+      min-height: 220px;
+      padding: 18px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .pc::after {
+      content: "";
+      position: absolute;
+      right: -14px;
+      top: 50%;
+      width: 14px;
+      height: 2px;
+      background: var(--cyan);
+    }
+
+    .pc:last-child::after { display: none; }
+
+    .pc b {
+      display: inline-flex;
+      margin-bottom: 14px;
+      color: var(--ink);
+      font-size: 26px;
+    }
+
+    .pc p {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .pc small {
+      display: block;
+      margin-top: 18px;
+      color: var(--cyan);
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .formula {
+      display: grid;
+      gap: 18px;
+      padding: 28px;
+      background: #0b1118;
+      border: 1px solid #263544;
+      border-radius: 8px;
+    }
+
+    .formula .big {
+      color: var(--ink);
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: clamp(22px, 2.8vw, 39px);
+      line-height: 1.2;
+    }
+
+    .weights {
+      display: grid;
+      gap: 12px;
+    }
+
+    .weight {
+      display: grid;
+      grid-template-columns: 150px 1fr 54px;
+      gap: 12px;
+      align-items: center;
+      color: #d6e0e8;
+      font-size: 15px;
+    }
+
+    .bar {
+      height: 12px;
+      background: #202a36;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+    }
+
+    .evidence {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    figure {
+      margin: 0;
+      min-width: 0;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      max-height: 58vh;
+      object-fit: contain;
+      background: #f4f7fa;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    figcaption {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0c1219;
+      font-size: 15px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--cyan);
+      background: #121a24;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    td strong { color: var(--ink); }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .phase {
+      padding: 22px;
+      border-left: 3px solid var(--cyan);
+      background: #101720;
+      border-radius: 8px;
+    }
+
+    .phase:nth-child(2) { border-left-color: var(--red); }
+    .phase:nth-child(3) { border-left-color: var(--green); }
+
+    .phase b {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+
+    .chart {
+      display: grid;
+      gap: 12px;
+      padding: 24px;
+      background: #0b1118;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 86px;
+      gap: 12px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .chart-bar {
+      height: 18px;
+      background: #1a2430;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .chart-bar i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+    }
+
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      z-index: 2;
+    }
+
+    .controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 34px;
+      color: var(--ink);
+      background: #121922;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--cyan); }
+
+    .progress {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, .08);
+      z-index: 20;
+    }
+
+    .progress i {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--amber), var(--green));
+      transition: width .2s ease;
+    }
+
+    .title-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 44px;
+      align-items: end;
+    }
+
+    .title-card {
+      padding: 24px;
+      border-left: 3px solid var(--cyan);
+      background: rgba(16, 21, 29, .78);
+    }
+
+    .team {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+      color: #d7e0e8;
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      html, body { overflow: auto; }
+      .deck { height: auto; min-height: 100vh; }
+      .slide {
+        position: relative;
+        display: none;
+        min-height: 100vh;
+        padding: 28px 22px;
+      }
+      .slide.active { display: grid; }
+      .slide::after { left: 22px; right: 22px; bottom: 66px; }
+      .title-grid, .two-col, .evidence { grid-template-columns: 1fr; }
+      .three-col, .four-col, .timeline, .flow { grid-template-columns: 1fr; }
+      .stress-metrics { grid-template-columns: 1fr; }
+      .pc::after { display: none; }
+      .title-card { padding: 18px; }
+      .team { grid-template-columns: 1fr; }
+      .weight { grid-template-columns: 110px 1fr 44px; }
+      figure img { max-height: 42vh; }
+    }
+
+    @media print {
+      html, body {
+        overflow: visible;
+        background: #07090d;
+      }
+      .deck { height: auto; }
+      .slide {
+        position: relative;
+        opacity: 1;
+        transform: none;
+        page-break-after: always;
+        height: 100vh;
+        pointer-events: auto;
+      }
+      .controls, .progress { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <section class="slide active">
+      <header>
+        <p class="kicker">Introduccion a Sistemas Distribuidos</p>
+        <span class="section-tag">2026</span>
+      </header>
+      <div class="content title-grid">
+        <div>
+          <h1>Smart Semaphore Management</h1>
+          <p class="lead" style="margin-top: 24px;">Sistema distribuido para simular trafico urbano, medir congestion con sensores logicos y ajustar semaforos en tiempo real.</p>
+        </div>
+        <div class="title-card panel">
+          <p class="small">Pontificia Universidad Javeriana<br>Ingenieria de Sistemas</p>
+          <div class="team">
+            <span>Daniel Felipe Ramirez Vargas</span>
+            <span>Ana Sofia Arboleda</span>
+            <span>Samuel Pico</span>
+            <span>Guillermo Andres Aponte Cardenas</span>
+          </div>
+        </div>
+      </div>
+      <footer><span>Gestion inteligente de trafico urbano</span><span class="mono">PC0 + PC1 + PC2 + PC3</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Problematica</p>
+        <span class="section-tag">Contexto</span>
+      </header>
+      <div class="content two-col">
+        <div>
+          <h2>Un cruce congestionado es un problema distribuido.</h2>
+          <p class="lead" style="margin-top: 22px;">La decision de un semaforo depende de informacion que llega desde vias, sensores, bases de datos y operadores humanos. Si un nodo falla, el trafico no puede detenerse.</p>
+        </div>
+        <div class="panel pad">
+          <ul class="list">
+            <li>La cola visible no siempre representa toda la presion vehicular.</li>
+            <li>El sistema debe reaccionar sin depender de una unica maquina.</li>
+            <li>La interfaz de monitoreo puede fallar, pero la operacion debe continuar.</li>
+            <li>Las decisiones deben ser medibles, reproducibles y configurables.</li>
+          </ul>
+        </div>
+      </div>
+      <footer><span>Pregunta guia</span><span>Como priorizar vias con datos distribuidos y tolerancia a fallos?</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Objetivos</p>
+        <span class="section-tag">Alcance</span>
+      </header>
+      <div class="content">
+        <h2>Construir una simulacion operativa, no solo un modelo teorico.</h2>
+        <div class="three-col">
+          <div class="metric panel"><span>Objetivo 01</span><strong>Simular</strong><p class="small">Una ciudad como grafo dirigido con vehiculos, vias, colas y semaforos.</p></div>
+          <div class="metric green panel"><span>Objetivo 02</span><strong>Decidir</strong><p class="small">Calcular prioridad por via a partir de camara, espira inductiva y GPS.</p></div>
+          <div class="metric amber panel"><span>Objetivo 03</span><strong>Resistir</strong><p class="small">Mantener PC0, PC1 y PC2 activos ante la caida de PC3 y resincronizar al volver.</p></div>
+        </div>
+      </div>
+      <footer><span>Resultado esperado</span><span>Control semaforico automatico, manual y observable</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Metodologia</p>
+        <span class="section-tag">Arquitectura</span>
+      </header>
+      <div class="content">
+        <h2>Separacion por responsabilidades y comunicacion ZeroMQ.</h2>
+        <div class="flow">
+          <div class="pc"><b>PC0</b><p>Simulacion autoritativa, generacion de vehiculos, ambulancias y base historica.</p><small>snapshots<br>comandos<br>solicitudes ambulancia</small></div>
+          <div class="pc"><b>PC1</b><p>Sensores logicos y broker. Convierte snapshots en eventos por via instrumentada.</p><small>camara<br>espira inductiva<br>gps</small></div>
+          <div class="pc"><b>PC2</b><p>Analitica, control semaforico, replica operativa y backend de respaldo.</p><small>score por eje<br>failover<br>sincronizacion</small></div>
+          <div class="pc"><b>PC3</b><p>Base principal, backend primario, control manual, ambulancias e interfaz web.</p><small>monitoreo<br>operacion humana<br>consulta estado</small></div>
+        </div>
+      </div>
+      <footer><span>Comunicacion</span><span class="mono">PUSH/PULL, PUB/SUB y REQ/REP sobre ZeroMQ</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Modelo</p>
+        <span class="section-tag">Ciudad</span>
+      </header>
+      <div class="content two-col">
+        <div>
+          <h2>La ciudad se representa como una cuadricula 4x4 sobre un grafo dirigido.</h2>
+          <p class="lead" style="margin-top: 22px;">Cada interseccion mantiene una fase activa horizontal o vertical. Las vias son aristas unidireccionales con vehiculos en circulacion, vehiculos en espera, velocidad promedio y score de congestion.</p>
+        </div>
+        <div class="panel map-grid" aria-label="Mapa conceptual de la ciudad">
+          <div class="node">A1</div><div class="node">A2</div><div class="node">A3</div><div class="node">A4</div>
+          <div class="node">B1</div><div class="node">B2</div><div class="node">B3</div><div class="node">B4</div>
+          <div class="node">C1</div><div class="node">C2</div><div class="node">C3</div><div class="node">C4</div>
+          <div class="node">D1</div><div class="node">D2</div><div class="node">D3</div><div class="node">D4</div>
+        </div>
+      </div>
+      <footer><span>Configuracion base</span><span class="mono">config/system_config.json</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Solucion</p>
+        <span class="section-tag">Analitica</span>
+      </header>
+      <div class="content two-col">
+        <div class="formula">
+          <p class="big">score = 0.50 camara<br>+ 0.35 espira<br>+ 0.15 gps</p>
+          <p class="small">La analitica agrupa scores por eje de interseccion. El eje con mayor presion recibe prioridad semaforica, salvo que exista control manual activo.</p>
+        </div>
+        <div class="panel pad">
+          <div class="weights">
+            <div class="weight"><span>Camara</span><div class="bar"><i style="width: 50%"></i></div><strong>0.50</strong></div>
+            <div class="weight"><span>Espira</span><div class="bar"><i style="width: 35%"></i></div><strong>0.35</strong></div>
+            <div class="weight"><span>GPS</span><div class="bar"><i style="width: 15%"></i></div><strong>0.15</strong></div>
+          </div>
+          <ul class="list" style="margin-top: 24px;">
+            <li>Camara: vehiculos detenidos antes del semaforo.</li>
+            <li>Espira: vehiculos todavia en transito por la via.</li>
+            <li>GPS: menor velocidad promedio implica mayor prioridad.</li>
+          </ul>
+        </div>
+      </div>
+      <footer><span>Decision</span><span>Una fase ganadora por interseccion y por tick util</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Solucion</p>
+        <span class="section-tag">Componentes</span>
+      </header>
+      <div class="content evidence">
+        <div>
+          <h2>El sistema separa simulacion, mensajeria, analitica, persistencia y operacion.</h2>
+          <p class="lead" style="margin-top: 22px;">La carpeta <span class="mono">common</span> centraliza contratos de mensajes, modelos de dominio y utilidades compartidas; cada PC mantiene autoridad sobre su rol operativo.</p>
+        </div>
+        <figure>
+          <img src="DocumentosLatex/diagramaComponentes.png" alt="Diagrama de componentes del sistema">
+          <figcaption>Diagrama de componentes generado para la documentacion del proyecto.</figcaption>
+        </figure>
+      </div>
+      <footer><span>Contratos compartidos</span><span class="mono">EventoSensor, SnapshotOperativo, ComandoSemaforo</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Solucion</p>
+        <span class="section-tag">Continuidad</span>
+      </header>
+      <div class="content">
+        <h2>La caida de PC3 degrada la interfaz, no detiene el nucleo operativo.</h2>
+        <div class="timeline">
+          <div class="phase"><b>Operacion normal</b><p class="small">PC3 atiende consultas y operaciones. PC2 conserva replica actualizada desde snapshots.</p></div>
+          <div class="phase"><b>Falla PC3</b><p class="small">PC0 continua ticks, PC1 publica sensores y PC2 decide semaforos. El backend de respaldo responde consultas limitadas.</p></div>
+          <div class="phase"><b>Reinicio PC3</b><p class="small">La base principal solicita resincronizacion a PC2 y reconstruye el estado operativo vigente.</p></div>
+        </div>
+        <div class="four-col">
+          <div class="metric panel"><span>Durante falla</span><strong>97</strong><p class="small">ticks adicionales procesados.</p></div>
+          <div class="metric green panel"><span>Resync</span><strong>290</strong><p class="small">tick recuperado desde replica.</p></div>
+          <div class="metric amber panel"><span>Servicios</span><strong>3/3</strong><p class="small">PC0, PC1 y PC2 activos.</p></div>
+          <div class="metric blue panel"><span>Final</span><strong>341</strong><p class="small">ticks al cerrar prueba.</p></div>
+        </div>
+      </div>
+      <footer><span>Patron</span><span>Replica operativa y failover parcial</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Pruebas</p>
+        <span class="section-tag">Protocolo</span>
+      </header>
+      <div class="content">
+        <h2>Tres pruebas cubren continuidad, limite de carga y comparacion de rendimiento.</h2>
+        <table>
+          <thead>
+            <tr><th>Prueba</th><th>Que se modifica</th><th>Que se comprueba</th><th>Evidencia</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Tolerancia a fallos</strong></td><td>Se detiene PC3 durante la ejecucion.</td><td>PC0, PC1 y PC2 siguen funcionando; PC3 resincroniza al volver.</td><td>Logs y pantallazos de servicios.</td></tr>
+            <tr><td><strong>Estres</strong></td><td>Mas vehiculos, sensores mas frecuentes y snapshots por tick.</td><td>El sistema no se bloquea ni colapsa bajo carga maxima.</td><td>Metricas en ventana de 40 s.</td></tr>
+            <tr><td><strong>Rendimiento</strong></td><td>Cinco escenarios con intervalos de sensores y generacion vehicular distintos.</td><td>Eventos por minuto, latencia backend, tick rate, vehiculos/s y errores.</td><td>Tabla comparativa de escenarios.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer><span>Entorno</span><span>Ubuntu 22.04, Python 3.10, pyzmq 27.1.0, SQLite local</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Resultados</p>
+        <span class="section-tag">Tolerancia</span>
+      </header>
+      <div class="content evidence">
+        <div>
+          <h2>PC3 se detuvo; el resto del sistema continuo operando.</h2>
+          <div class="three-col" style="margin-top: 24px;">
+            <div class="metric panel"><span>Operacion normal</span><strong>193</strong><p class="small">ticks antes de la caida.</p></div>
+            <div class="metric red panel"><span>Caida PC3</span><strong>10 s</strong><p class="small">fuera de servicio.</p></div>
+            <div class="metric green panel"><span>Recuperacion</span><strong>OK</strong><p class="small">resync desde replica PC2.</p></div>
+          </div>
+        </div>
+        <figure>
+          <img src="DocumentosLatex/ProtocoloDePruebas/pantallazo_tolerancia_fallos.png" alt="Evidencia de tolerancia a fallos">
+          <figcaption>Evidencia de ejecucion durante la prueba de tolerancia a fallos.</figcaption>
+        </figure>
+      </div>
+      <footer><span>Resultado clave</span><span>La interfaz principal puede caer sin detener la simulacion ni la analitica</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Resultados</p>
+        <span class="section-tag">Estres</span>
+      </header>
+      <div class="content two-col">
+        <div>
+          <h2>La carga masiva degrado el tick rate, pero no rompio el sistema.</h2>
+          <div class="stress-metrics" style="margin-top: 24px;">
+            <div class="metric panel"><span>Ticks</span><strong>119</strong><p class="small">en 40 segundos.</p></div>
+            <div class="metric amber panel"><span>Vehiculos</span><strong>26 387</strong><p class="small">creados.</p></div>
+            <div class="metric green panel"><span>Errores</span><strong>0</strong><p class="small">criticos en logs.</p></div>
+            <div class="metric blue panel"><span>Tick rate</span><strong>3.0/s</strong><p class="small">vs. 10/s teorico.</p></div>
+          </div>
+        </div>
+        <figure>
+          <img src="DocumentosLatex/ProtocoloDePruebas/Prueba%202.png" alt="Evidencia de prueba de estres">
+          <figcaption>Ventana de medicion de estres con servicios vivos.</figcaption>
+        </figure>
+      </div>
+      <footer><span>Lectura tecnica</span><span>El cuello de botella aparece en el motor PC0, no en el stack ZMQ</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Resultados</p>
+        <span class="section-tag">Rendimiento</span>
+      </header>
+      <div class="content two-col">
+        <div>
+          <h2>La frecuencia de sensores domina el volumen de mensajes.</h2>
+          <div class="chart" style="margin-top: 24px;">
+            <div class="chart-row"><span>E1</span><div class="chart-bar"><i style="width: 9.6%"></i></div><strong>823</strong></div>
+            <div class="chart-row"><span>E2</span><div class="chart-bar"><i style="width: 100%"></i></div><strong>8580</strong></div>
+            <div class="chart-row"><span>E3</span><div class="chart-bar"><i style="width: 4.5%"></i></div><strong>384</strong></div>
+            <div class="chart-row"><span>E4</span><div class="chart-bar"><i style="width: 22.4%"></i></div><strong>1920</strong></div>
+            <div class="chart-row"><span>E5</span><div class="chart-bar"><i style="width: 46.7%"></i></div><strong>4004</strong></div>
+          </div>
+          <p class="small" style="margin-top: 10px;">Eventos estimados en 2 minutos por escenario.</p>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Esc.</th><th>Sensores</th><th>Veh/s</th><th>Lat. backend</th><th>Errores</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>E1</td><td>10 s</td><td>2.5</td><td>0.69 ms</td><td>0</td></tr>
+            <tr><td>E2</td><td>1 s</td><td>2.4</td><td>0.59 ms</td><td>0</td></tr>
+            <tr><td>E3</td><td>10 s</td><td>529.6</td><td>0.25 ms</td><td>0</td></tr>
+            <tr><td>E4</td><td>2.5 s</td><td>527.4</td><td>0.32 ms</td><td>0</td></tr>
+            <tr><td>E5</td><td>1 s</td><td>522.7</td><td>0.41 ms</td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer><span>Latencia semaforica estimada</span><span>~50 ms promedio, ~100 ms maximo por espera de tick</span></footer>
+    </section>
+
+    <section class="slide">
+      <header>
+        <p class="kicker">Cierre</p>
+        <span class="section-tag">Conclusiones</span>
+      </header>
+      <div class="content">
+        <h2>El prototipo valida una arquitectura distribuida estable para control semaforico inteligente.</h2>
+        <div class="three-col">
+          <div class="panel pad"><h3>Continuidad</h3><p class="small" style="margin-top: 12px;">PC0, PC1 y PC2 sostienen la operacion cuando PC3 cae. La recuperacion por replica funciona sin intervencion manual.</p></div>
+          <div class="panel pad"><h3>Rendimiento</h3><p class="small" style="margin-top: 12px;">El backend mantiene latencias inferiores a 1 ms en todos los escenarios medidos.</p></div>
+          <div class="panel pad"><h3>Limite observado</h3><p class="small" style="margin-top: 12px;">Bajo alta generacion vehicular, el costo principal esta en PC0 y se refleja en menor tick rate.</p></div>
+        </div>
+        <p class="lead">El sistema no presento errores criticos en las pruebas, proceso sensores y comandos, y dejo una base clara para escalar escenarios, comparar brokers y desplegar en maquinas separadas.</p>
+      </div>
+      <footer><span>Smart Semaphore Management</span><span>Presentacion del proyecto</span></footer>
+    </section>
+  </main>
+
+  <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const progress = document.getElementById("progress");
+    let current = 0;
+
+    function icon(label) {
+      return label === "prev" ? "‹" : "›";
+    }
+
+    function installControls() {
+      slides.forEach((slide, index) => {
+        const footer = slide.querySelector("footer");
+        const controls = document.createElement("span");
+        controls.className = "controls";
+        controls.innerHTML = `
+          <button type="button" aria-label="Diapositiva anterior" data-dir="-1">${icon("prev")}</button>
+          <span class="mono">${String(index + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}</span>
+          <button type="button" aria-label="Diapositiva siguiente" data-dir="1">${icon("next")}</button>
+        `;
+        footer.appendChild(controls);
+      });
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-dir]");
+        if (!button) return;
+        go(Number(button.dataset.dir));
+      });
+    }
+
+    function render() {
+      slides.forEach((slide, index) => slide.classList.toggle("active", index === current));
+      progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+      history.replaceState(null, "", `#${current + 1}`);
+    }
+
+    function go(direction) {
+      current = Math.min(slides.length - 1, Math.max(0, current + direction));
+      render();
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+        event.preventDefault();
+        go(1);
+      }
+      if (["ArrowLeft", "PageUp", "Backspace"].includes(event.key)) {
+        event.preventDefault();
+        go(-1);
+      }
+      if (event.key === "Home") {
+        current = 0;
+        render();
+      }
+      if (event.key === "End") {
+        current = slides.length - 1;
+        render();
+      }
+    });
+
+    const initial = Number(location.hash.replace("#", ""));
+    if (Number.isInteger(initial) && initial >= 1 && initial <= slides.length) {
+      current = initial - 1;
+    }
+
+    installControls();
+    render();
+  </script>
+</body>
+</html>
